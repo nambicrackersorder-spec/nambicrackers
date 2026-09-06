@@ -11,7 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { buildCanonical, defaultImageUrl, localBusinessJsonLd } from "@/lib/seo";
+import { buildCanonical, defaultImageUrl, localBusinessJsonLd, organizationJsonLd } from "@/lib/seo";
 
 function NotFoundComponent() {
   return (
@@ -94,6 +94,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { property: "og:image", content: defaultImageUrl },
+      { property: "og:image:alt", content: "Nambi Crackers logo" },
+      { property: "og:image:type", content: "image/png" },
+      { property: "og:image:width", content: "512" },
+      { property: "og:image:height", content: "512" },
       { property: "og:url", content: buildCanonical("/") },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: defaultImageUrl },
@@ -128,6 +132,10 @@ function RootShell({ children }: { children: ReactNode }) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
       <body>

@@ -11,9 +11,9 @@ export function QtyControl({
   onChange: (v: number) => void;
   compact?: boolean;
 }) {
-  const btn = compact ? "h-7 w-7" : "h-8 w-8";
+  const btn = compact ? "h-6 w-6 max-[360px]:h-4 max-[360px]:w-4" : "h-8 w-8";
   return (
-    <div className="flex items-center justify-center gap-1">
+    <div className="flex items-center justify-center gap-1 max-[360px]:gap-0">
       <button
         type="button"
         aria-label="Decrease quantity"
@@ -29,7 +29,7 @@ export function QtyControl({
         value={value === 0 ? "" : value}
         onChange={(e) => onChange(Number(e.target.value))}
         placeholder="0"
-        className={`${compact ? "w-8 text-xs" : "w-12 text-base"} rounded border border-input bg-background px-0.5 py-1 text-center outline-none focus:border-accent`}
+        className={`${compact ? "w-7 py-0.5 text-xs max-[360px]:w-5" : "w-12 py-1 text-base"} rounded border border-input bg-background px-0.5 text-center outline-none focus:border-accent`}
       />
       <button
         type="button"
@@ -43,9 +43,9 @@ export function QtyControl({
   );
 }
 
-// Image | Product Name | Price | Unit | Discount | Quantity — aligned on every screen size
+// Keep every column visible; the product name absorbs the remaining width.
 const ROW =
-  "grid grid-cols-[56px_minmax(0,1fr)_44px_38px_48px_96px] items-center gap-1.5 sm:grid-cols-[64px_minmax(0,1fr)_56px_48px_60px_110px] sm:gap-2 lg:grid-cols-[80px_minmax(0,1fr)_90px_70px_90px_160px_90px]";
+  "grid grid-cols-[44px_minmax(48px,1fr)_32px_32px_40px_82px_34px] items-center gap-1 max-[360px]:grid-cols-[36px_minmax(24px,1fr)_26px_28px_48px_58px_28px] max-[360px]:gap-0 sm:grid-cols-[64px_minmax(90px,1fr)_56px_48px_60px_110px_60px] sm:gap-2 lg:grid-cols-[80px_minmax(120px,1fr)_90px_70px_90px_160px_70px]";
 
 function ProductDetailModal({
   product,
@@ -112,26 +112,22 @@ export function ProductTable({
 
   return (
     <div className="overflow-hidden rounded-b-md border border-t-0 border-border bg-card">
-      {/* Column header — visible on every device */}
       <div
-        className={`${ROW} border-b border-border bg-secondary px-2 py-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground sm:px-3 sm:text-[10px] lg:text-xs`}
+        className={`${ROW} border-b border-border bg-secondary px-2 py-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground max-[360px]:px-1 sm:px-3 sm:text-[10px] lg:text-xs`}
       >
         <span className="text-center">Image</span>
         <span className="text-center">Product Name</span>
         <span className="text-center">Price</span>
         <span className="text-center">Unit</span>
-        <span className="text-center">Discount</span>
-        <span className="text-center">Quantity</span>
-        <span className="hidden text-center lg:block">Total</span>
+        <span className="text-center leading-[1.05] max-[360px]:whitespace-nowrap">Discount</span>
+        <span className="text-center leading-[1.05] max-[360px]:break-all">Quantity</span>
+        <span className="text-center">Total</span>
       </div>
 
       {cat.products.map((p) => {
         const n = qty[p.id] ?? 0;
         return (
-          <div
-            key={p.id}
-            className={`${ROW} border-t border-border px-2 py-2 first:border-t-0 sm:px-3 sm:py-2.5`}
-          >
+          <div key={p.id} className={`${ROW} border-t border-border px-2 py-2 first:border-t-0 max-[360px]:px-1 sm:px-3 sm:py-2.5`}>
             <button
               type="button"
               onClick={() => setSelected(p)}
@@ -142,7 +138,7 @@ export function ProductTable({
                 src={`/products/${p.slug}.jpg`}
                 alt={p.name}
                 loading="lazy"
-                className="h-12 w-12 rounded border border-border object-cover sm:h-14 sm:w-14 lg:h-16 lg:w-16"
+                className="h-12 w-12 rounded border border-border object-cover max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16"
               />
             </button>
 
@@ -150,32 +146,32 @@ export function ProductTable({
               <button
                 type="button"
                 onClick={() => setSelected(p)}
-                className="w-full text-[12px] font-semibold leading-tight sm:text-sm"
+                className="w-full text-[11px] font-semibold leading-tight sm:text-sm"
               >
                 {p.name}
               </button>
               <button
                 type="button"
                 onClick={() => setSelected(p)}
-                className="w-full truncate text-[10px] text-muted-foreground sm:text-xs"
+                className="w-full truncate text-[9px] text-muted-foreground sm:text-xs"
               >
                 {p.tamil}
               </button>
             </div>
 
-            <span className="text-center text-[11px] text-muted-foreground line-through sm:text-sm">
+            <span className="text-center text-[10px] text-muted-foreground line-through sm:text-sm">
               {p.rate}
             </span>
-            <span className="text-center text-[10px] text-muted-foreground sm:text-xs">
+            <span className="text-center text-[9px] text-muted-foreground sm:text-xs">
               {p.unit}
             </span>
-            <span className="text-center text-[13px] font-bold text-primary sm:text-base">
+            <span className="text-center text-[12px] font-bold text-primary sm:text-base">
               {p.price}
             </span>
             <span className="flex justify-center">
               <QtyControl value={n} onChange={(v) => setValue(p.id, v)} compact />
             </span>
-            <span className="hidden text-center text-sm font-semibold lg:block">
+            <span className="text-center text-[10px] font-semibold sm:text-sm">
               {n > 0 ? (n * p.price).toLocaleString("en-IN") : "-"}
             </span>
           </div>

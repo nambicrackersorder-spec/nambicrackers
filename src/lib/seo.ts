@@ -5,6 +5,19 @@ export const buildCanonical = (path: string) =>
 
 export const defaultImageUrl = `${SITE_URL}/logo.png`;
 
+export const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Nambi Crackers",
+  url: SITE_URL,
+  logo: {
+    "@type": "ImageObject",
+    url: defaultImageUrl,
+    width: 512,
+    height: 512,
+  },
+};
+
 export const localBusinessJsonLd = {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
