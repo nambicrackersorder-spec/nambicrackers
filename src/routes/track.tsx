@@ -13,16 +13,17 @@ export const Route = createFileRoute("/track")({
       {
         name: "description",
         content:
-          "Enter your Nambi Crackers order ID or mobile number to see live delivery status — confirmed, in transit or delivered.",
+          "Track your Nambi Crackers order by order ID or mobile number to see confirmation, dispatch and delivery status.",
       },
       { property: "og:title", content: "Track Your Order — Nambi Crackers" },
       {
         property: "og:description",
-        content: "Check the live delivery status of your Nambi Crackers order by order ID.",
+        content: "Check the live delivery status of your Nambi Crackers order by order ID or mobile number.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: "https://www.nambicrackers.in/track" }],
   }),
   component: TrackPage,
 });

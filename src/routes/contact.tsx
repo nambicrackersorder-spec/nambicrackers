@@ -12,16 +12,17 @@ export const Route = createFileRoute("/contact")({
       {
         name: "description",
         content:
-          "Contact Nambi Crackers, Paraipatti, Sivakasi. Call +91 63816 55906 or WhatsApp us for crackers orders and enquiries.",
+          "Contact Nambi Crackers in Sivakasi for crackers enquiries, pricing, delivery details and order confirmation.",
       },
       { property: "og:title", content: "Contact Nambi Crackers Sivakasi" },
       {
         property: "og:description",
-        content: "Call, WhatsApp or email Nambi Crackers for your Diwali crackers order.",
+        content: "Call, WhatsApp or email Nambi Crackers for your crackers enquiry or Diwali order.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: "https://www.nambicrackers.in/contact" }],
   }),
   component: Contact,
 });

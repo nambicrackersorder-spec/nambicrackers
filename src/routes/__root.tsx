@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { buildCanonical, defaultImageUrl, localBusinessJsonLd } from "@/lib/seo";
 
 function NotFoundComponent() {
   return (
@@ -76,27 +77,34 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
+      { name: "google-site-verification", content: "Yt1ndfPfiF3Hq4qTR4DdtNFW9umJyVaYtUtJq_oC7H4" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Nambi Crackers Sivakasi | Diwali Crackers at 80% Off" },
+      { name: "robots", content: "index,follow" },
+      { title: "Buy Crackers Online India | Nambi Crackers Sivakasi 90% Off" },
       {
         name: "description",
         content:
-          "Nambi Crackers, Sivakasi. Order Diwali crackers online at 80% discount with the full 2026 price list.",
+          "Nambi Crackers offers Sivakasi fireworks online in India with 90% off MRP, full price list, safe packing and order tracking.",
       },
       { name: "author", content: "Nambi Crackers" },
-      { property: "og:title", content: "Nambi Crackers Sivakasi" },
+      { property: "og:title", content: "Buy Crackers Online India | Nambi Crackers Sivakasi" },
       {
         property: "og:description",
-        content: "Crackers discount at 90%. Full price list and easy online ordering.",
+        content: "Crackers discount at 90% with Sivakasi firework price list and online enquiry ordering.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: defaultImageUrl },
+      { property: "og:url", content: buildCanonical("/") },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: defaultImageUrl },
+      { name: "twitter:image:alt", content: "Nambi Crackers logo" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "canonical", href: buildCanonical("/") },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -117,6 +125,10 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
+        />
       </head>
       <body>
         {children}

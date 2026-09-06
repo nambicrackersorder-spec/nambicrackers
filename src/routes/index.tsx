@@ -13,19 +13,20 @@ import { downloadInvoice, type InvoiceData } from "@/lib/invoice";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Nambi Crackers Sivakasi | 90% Off Diwali Crackers Price List 2026" },
+      { title: "Buy Crackers Online India | Nambi Crackers Sivakasi 90% Off" },
       {
         name: "description",
         content:
-          "Order Sivakasi crackers online from Nambi Crackers at 90% discount. Full 2026 price list with photos, safe packing and fast delivery across Tamil Nadu.",
+          "Buy crackers online in India from Nambi Crackers, Sivakasi. Full 2026 price list with 90% off MRP, safe packing and pan-India delivery.",
       },
-      { property: "og:title", content: "Nambi Crackers Sivakasi | 90% Off Price List 2026" },
+      { property: "og:title", content: "Buy Crackers Online India | Nambi Crackers Sivakasi" },
       {
         property: "og:description",
         content:
-          "Crackers discount at 90%. Browse the full price list and order online.",
+          "Crackers discount at 90%. Browse the full price list and order online from Sivakasi for delivery across India.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://www.nambicrackers.in/" }],
   }),
   component: Index,
 });

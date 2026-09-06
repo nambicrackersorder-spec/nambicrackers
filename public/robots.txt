@@ -12,3 +12,7 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://www.nambicrackers.in/sitemap.xml
+
+Disallow: /orders-nambi2026

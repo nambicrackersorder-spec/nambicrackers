@@ -12,20 +12,21 @@ import { downloadInvoice, type InvoiceData } from "@/lib/invoice";
 export const Route = createFileRoute("/categories")({
   head: () => ({
     meta: [
-      { title: "Crackers Categories | Nambi Crackers Sivakasi Price List" },
+      { title: "Sparklers, Flower Pots & Sky Shots Online India | Nambi Crackers" },
       {
         name: "description",
         content:
-          "Browse all crackers categories — sparklers, flower pots, sky shots, rockets, gift boxes and more at 90% off.",
+          "Buy sparklers, flower pots, sky shots, rockets and gift box crackers online in India from Nambi Crackers, Sivakasi.",
       },
-      { property: "og:title", content: "Crackers Categories | Nambi Crackers" },
+      { property: "og:title", content: "Sparklers, Flower Pots & Sky Shots Online India | Nambi Crackers" },
       {
         property: "og:description",
-        content: "All crackers categories with 90% discount price list 2026.",
+        content: "Explore crackers categories with 90% off MRP and delivery across India.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: "https://www.nambicrackers.in/categories" }],
   }),
   component: Categories,
 });
