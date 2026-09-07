@@ -9,12 +9,26 @@ export const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "Nambi Crackers",
+  alternateName: "Nambi Crackers Sivakasi",
   url: SITE_URL,
   logo: {
     "@type": "ImageObject",
     url: defaultImageUrl,
     width: 512,
     height: 512,
+  },
+};
+
+export const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Nambi Crackers",
+  alternateName: "Nambi Crackers Sivakasi",
+  url: SITE_URL,
+  publisher: {
+    "@type": "Organization",
+    name: "Nambi Crackers",
+    logo: defaultImageUrl,
   },
 };
 
@@ -34,5 +48,10 @@ export const localBusinessJsonLd = {
     addressCountry: "IN",
   },
   areaServed: ["India", "Tamil Nadu", "Sivakasi"],
+  brand: {
+    "@type": "Brand",
+    name: "Nambi Crackers",
+    logo: defaultImageUrl,
+  },
   sameAs: ["https://www.nambicrackers.in"],
 };

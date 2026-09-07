@@ -11,7 +11,13 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { buildCanonical, defaultImageUrl, localBusinessJsonLd, organizationJsonLd } from "@/lib/seo";
+import {
+  buildCanonical,
+  defaultImageUrl,
+  localBusinessJsonLd,
+  organizationJsonLd,
+  websiteJsonLd,
+} from "@/lib/seo";
 
 function NotFoundComponent() {
   return (
@@ -88,6 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "author", content: "Nambi Crackers" },
       { property: "og:title", content: "Buy Crackers Online India | Nambi Crackers Sivakasi" },
+      { property: "og:site_name", content: "Nambi Crackers" },
       {
         property: "og:description",
         content: "Crackers discount at 90% with Sivakasi firework price list and online enquiry ordering.",
@@ -136,6 +143,10 @@ function RootShell({ children }: { children: ReactNode }) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
       </head>
       <body>

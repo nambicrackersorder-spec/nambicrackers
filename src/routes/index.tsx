@@ -162,7 +162,8 @@ function Index() {
 
             <p className="mt-4 text-sm text-muted-foreground">
               Our team will verify your enquiry and contact you via email or WhatsApp with payment
-              and delivery details. The invoice has been emailed to you.
+              and delivery details. The invoice has been emailed to you. Please check your spam or
+              junk folder if you do not see it.
             </p>
             <button
               onClick={() => downloadInvoice(done)}
