@@ -45,7 +45,7 @@ export function QtyControl({
 
 // Keep every column visible; the product name absorbs the remaining width.
 const ROW =
-  "grid grid-cols-[44px_minmax(48px,1fr)_32px_32px_40px_82px_34px] items-center gap-1 max-[360px]:grid-cols-[36px_minmax(24px,1fr)_26px_28px_48px_58px_28px] max-[360px]:gap-0 sm:grid-cols-[64px_minmax(90px,1fr)_56px_48px_60px_110px_60px] sm:gap-2 lg:grid-cols-[80px_minmax(120px,1fr)_90px_70px_90px_160px_70px]";
+  "grid grid-cols-[44px_minmax(48px,1fr)_32px_32px_40px_82px] items-center gap-1 max-[360px]:grid-cols-[36px_minmax(24px,1fr)_26px_28px_48px_58px] max-[360px]:gap-0 sm:grid-cols-[64px_minmax(90px,1fr)_56px_48px_60px_110px] sm:gap-2 lg:grid-cols-[80px_minmax(120px,1fr)_90px_70px_90px_160px]";
 
 function ProductDetailModal({
   product,
@@ -121,7 +121,6 @@ export function ProductTable({
         <span className="text-center">Unit</span>
         <span className="text-center leading-[1.05] max-[360px]:whitespace-nowrap">Discount</span>
         <span className="text-center leading-[1.05] max-[360px]:break-all">Quantity</span>
-        <span className="text-center">Total</span>
       </div>
 
       {cat.products.map((p) => {
@@ -170,9 +169,6 @@ export function ProductTable({
             </span>
             <span className="flex justify-center">
               <QtyControl value={n} onChange={(v) => setValue(p.id, v)} compact />
-            </span>
-            <span className="text-center text-[10px] font-semibold sm:text-sm">
-              {n > 0 ? (n * p.price).toLocaleString("en-IN") : "-"}
             </span>
           </div>
         );
