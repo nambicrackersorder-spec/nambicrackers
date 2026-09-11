@@ -5,6 +5,7 @@ import type { Product } from "@/data/products";
 import { invoiceBase64, makeOrderId, type InvoiceData } from "@/lib/invoice";
 import { QtyControl } from "./ProductTable";
 import { CrackerLoader } from "./CrackerLoader";
+import { productImageUrl } from "@/lib/product-image";
 
 export type CartLine = Product & { qty: number };
 
@@ -26,7 +27,6 @@ const EMPTY = {
   state: "",
   pincode: "",
 };
-
 
 export function Cart({ lines, setQty, clear, onClose, onDone }: Props) {
   const [form, setForm] = useState(EMPTY);
@@ -96,7 +96,6 @@ export function Cart({ lines, setQty, clear, onClose, onDone }: Props) {
     return "";
   };
 
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const v = validate();
@@ -114,7 +113,9 @@ export function Cart({ lines, setQty, clear, onClose, onDone }: Props) {
       const body = new URLSearchParams({
         orderId: data.orderId,
         ...form,
-        items: lines.map((l) => `${l.name} x ${l.qty} ${l.unit} = Rs.${l.qty * l.price}`).join("\n"),
+        items: lines
+          .map((l) => `${l.name} x ${l.qty} ${l.unit} = Rs.${l.qty * l.price}`)
+          .join("\n"),
         totalQty: String(totalQty),
         mrpTotal: String(mrpTotal),
         discountAmount: String(discount),
@@ -134,7 +135,6 @@ export function Cart({ lines, setQty, clear, onClose, onDone }: Props) {
       setSending(false);
     }
   };
-
 
   const field = (label: string, key: keyof typeof EMPTY, type = "text") => (
     <input
@@ -193,12 +193,18 @@ export function Cart({ lines, setQty, clear, onClose, onDone }: Props) {
                 key={l.id}
                 className="flex items-center gap-3 rounded-lg border border-border bg-card p-2"
               >
-                <img
-                  src={`/products/${l.slug}.jpg`}
-                  alt={l.name}
-                  loading="lazy"
-                  className="h-14 w-14 shrink-0 rounded object-cover"
-                />
+                {productImageUrl(l) ? (
+                  <img
+                    src={productImageUrl(l) ?? undefined}
+                    alt={l.name}
+                    loading="lazy"
+                    className="h-14 w-14 shrink-0 rounded object-cover"
+                  />
+                ) : (
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded border border-dashed border-border bg-muted px-1 text-center text-[8px] text-muted-foreground">
+                    No image
+                  </span>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold">{l.name}</div>
                   <div className="text-xs text-muted-foreground">
@@ -236,7 +242,6 @@ export function Cart({ lines, setQty, clear, onClose, onDone }: Props) {
             {field("State", "state")}
             {field("Pincode", "pincode")}
           </div>
-
         </div>
 
         {/* Sticky bottom summary + actions */}
@@ -275,7 +280,6 @@ export function Cart({ lines, setQty, clear, onClose, onDone }: Props) {
                 ? `Place order Min.${SHOP.minOrder}`
                 : "Place Order"}
           </button>
-
         </div>
 
         {/* Centered error popup */}

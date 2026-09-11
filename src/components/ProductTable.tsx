@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Minus, Plus, X } from "lucide-react";
 import type { Category, Product } from "@/data/products";
+import { productImageUrl } from "@/lib/product-image";
 
 export function QtyControl({
   value,
@@ -47,13 +48,9 @@ export function QtyControl({
 const ROW =
   "grid grid-cols-[44px_minmax(48px,1fr)_32px_32px_40px_82px] items-center gap-1 max-[360px]:grid-cols-[36px_minmax(24px,1fr)_26px_28px_48px_58px] max-[360px]:gap-0 sm:grid-cols-[64px_minmax(90px,1fr)_56px_48px_60px_110px] sm:gap-2 lg:grid-cols-[80px_minmax(120px,1fr)_90px_70px_90px_160px]";
 
-function ProductDetailModal({
-  product,
-  onClose,
-}: {
-  product: Product;
-  onClose: () => void;
-}) {
+function ProductDetailModal({ product, onClose }: { product: Product; onClose: () => void }) {
+  const imageUrl = productImageUrl(product);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -74,11 +71,17 @@ function ProductDetailModal({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <img
-          src={`/products/${product.slug}.jpg`}
-          alt={product.name}
-          className="mt-3 h-48 w-full rounded-lg border border-border object-cover"
-        />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={product.name}
+            className="mt-3 h-48 w-full rounded-lg border border-border object-cover"
+          />
+        ) : (
+          <div className="mt-3 flex h-48 items-center justify-center rounded-lg border border-dashed border-border bg-muted text-sm text-muted-foreground">
+            Image unavailable
+          </div>
+        )}
         <p className="mt-3 text-sm leading-snug text-muted-foreground">{product.tamil}</p>
         <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
           <div className="rounded bg-muted p-2">
@@ -125,20 +128,30 @@ export function ProductTable({
 
       {cat.products.map((p) => {
         const n = qty[p.id] ?? 0;
+        const imageUrl = productImageUrl(p);
         return (
-          <div key={p.id} className={`${ROW} border-t border-border px-2 py-2 first:border-t-0 max-[360px]:px-1 sm:px-3 sm:py-2.5`}>
+          <div
+            key={p.id}
+            className={`${ROW} border-t border-border px-2 py-2 first:border-t-0 max-[360px]:px-1 sm:px-3 sm:py-2.5`}
+          >
             <button
               type="button"
               onClick={() => setSelected(p)}
               aria-label={`View details of ${p.name}`}
               className="mx-auto block"
             >
-              <img
-                src={`/products/${p.slug}.jpg`}
-                alt={p.name}
-                loading="lazy"
-                className="h-12 w-12 rounded border border-border object-cover max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16"
-              />
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={p.name}
+                  loading="lazy"
+                  className="h-12 w-12 rounded border border-border object-cover max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16"
+                />
+              ) : (
+                <span className="flex h-12 w-12 items-center justify-center rounded border border-dashed border-border bg-muted px-1 text-center text-[8px] leading-tight text-muted-foreground max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16">
+                  No image
+                </span>
+              )}
             </button>
 
             <div className="min-w-0 text-center">
@@ -174,9 +187,7 @@ export function ProductTable({
         );
       })}
 
-      {selected && (
-        <ProductDetailModal product={selected} onClose={() => setSelected(null)} />
-      )}
+      {selected && <ProductDetailModal product={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }
