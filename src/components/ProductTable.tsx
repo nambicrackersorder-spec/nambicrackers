@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Minus, Plus, X } from "lucide-react";
+import { Minus, Plus, X, Image as ImageIcon } from "lucide-react";
 import type { Category, Product } from "@/data/products";
 import { productImageUrl } from "@/lib/product-image";
 
@@ -146,7 +146,7 @@ export function ProductTable({
   setValue: (id: number, v: number) => void;
 }) {
   const [selected, setSelected] = useState<Product | null>(null);
-  const hideImages = cat.name === "Paper Bombs";
+  const hideImages = ["Paper Bombs", "MINI DIGITAL", "MEGA DIGITAL"].includes(cat.name);
   const showImageColumn = !hideImages || cat.products.some((product) => product.showImage);
   const caseOnly = cat.products.some((product) => product.caseOnly);
   const rowClass = showImageColumn ? ROW : TEXT_ONLY_ROW;
@@ -192,9 +192,9 @@ export function ProductTable({
                     className="h-12 w-12 rounded border border-border object-cover max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16"
                   />
                 ) : !hideImages || p.showImage ? (
-                  <span className="flex h-12 w-12 items-center justify-center rounded border border-dashed border-border bg-muted px-1 text-center text-[8px] leading-tight text-muted-foreground max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16">
-                    No image
-                  </span>
+                  <div className="flex h-12 w-12 items-center justify-center rounded border border-dashed border-border bg-muted max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground max-[360px]:h-4 max-[360px]:w-4 sm:h-7 sm:w-7 lg:h-8 lg:w-8" />
+                  </div>
                 ) : null}
               </button>
             )}
