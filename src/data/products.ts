@@ -82,7 +82,7 @@ const AADYA_GIFT_BOXES: Category = {
     p("Kids Zone (30 Items)", "கிட்ஸ் ஜோன் (30 Items)", 4400, "1 Box", 440, "Gift Box/Kids Zone (30 Items).jpeg"),
     p("Classical (40 Items)", "கிளாசிக்கல் (40 Items)", 6600, "1 Box", 660, "Gift Box/Classical (40 Items).jpeg"),
     p("Elegant Party (50 Items)", "எலிகன்ட் (50 Items)", 9500, "1 Box", 950, "Gift Box/Elegant Party (50 Items).jpeg"),
-    p("Celebration Gift Box", "Celebration Gift Box", 17500, "1 Box", 1750, "Gift Box/Celebration box.jpeg"),
+    p("Celebration Gift Box", "செலிப்ரேஷன் கிஃப்ட் பாக்ஸ்", 17500, "1 Box", 1750, "Gift Box/Celebration box.jpeg"),
   ],
 };
 
