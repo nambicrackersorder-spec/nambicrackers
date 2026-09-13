@@ -79,9 +79,9 @@ const MONEY_BANK: Category = {
 const AADYA_GIFT_BOXES: Category = {
   name: "𝐆𝐈𝐅𝐓 𝐁𝐎𝐗 (𝐀𝐚𝐝𝐲𝐚'𝐬 𝐐𝐮𝐚𝐥𝐢𝐭𝐲)",
   products: [
-    p("Kids Zone", "30 items", 4400, "30 Items", 440, "Gift Box/Kids Zone (30 Items).jpeg"),
-    p("Classical", "40 items", 6600, "40 Items", 660, "Gift Box/Classical (40 Items).jpeg"),
-    p("Elegant Party", "50 items", 9500, "50 Items", 950, "Gift Box/Elegant Party (50 Items).jpeg"),
+    p("Kids Zone (30 Items)", "கிட்ஸ் ஜோன் (30 Items)", 4400, "1 Box", 440, "Gift Box/Kids Zone (30 Items).jpeg"),
+    p("Classical (40 Items)", "கிளாசிக்கல் (40 Items)", 6600, "1 Box", 660, "Gift Box/Classical (40 Items).jpeg"),
+    p("Elegant Party (50 Items)", "எலிகன்ட் (50 Items)", 9500, "1 Box", 950, "Gift Box/Elegant Party (50 Items).jpeg"),
     p("Celebration Gift Box", "Celebration Gift Box", 17500, "1 Box", 1750, "Gift Box/Celebration box.jpeg"),
   ],
 };
@@ -199,8 +199,6 @@ const BASE_CATEGORIES: Category[] = [
     ],
   },
   MONEY_BANK,
-  AADYA_GIFT_BOXES,
-  VE_GIFT_BOXES,
   {
     name: "Peacock's",
     products: [
@@ -402,17 +400,9 @@ const BASE_CATEGORIES: Category[] = [
       p("Five Star 5 in 1 (25 Pcs)", "ஃபைவ் ஸ்டார்", 3600, "1 Box"),
     ],
   },
+  AADYA_GIFT_BOXES,
+  VE_GIFT_BOXES,
 ];
-
-const GIFT_BOXES: Category = {
-  name: "Gift Boxes",
-  products: [
-    p("Kids Zone (30 Items)", "கிட்ஸ் ஜோன்", 4200, "1 Box"),
-    p("Classical (40 Items)", "கிளாசிக்கல்", 6200, "1 Box"),
-    p("Elegant Party (50 Items)", "எலிகன்ட்", 9200, "1 Box"),
-    p("VIP Celebration Gift Box", "VIP செலிப்ரேஷன் கிஃப்ட் பாக்ஸ்", 14000, "1 Box"),
-  ],
-};
 
 const PDF_RATES: Record<string, number> = {
   '2¾" Kuruvi': 70,
@@ -869,10 +859,11 @@ const sourceCategory = (category: string): string | null =>
     "MEGA DIGITAL": "day-festival-crackers",
     "Fancy Wheels": "ground-chakkars",
     "Money Bank": "money-bank",
-    "Gift Boxes": "gift-box",
+    "𝐆𝐈𝐅𝐓 𝐁𝐎𝐗 (𝐀𝐚𝐝𝐲𝐚'𝐬 𝐐𝐮𝐚𝐥𝐢𝐭𝐲)": "gift-box",
+    "𝐆𝐈𝐅𝐓 𝐁𝐎𝐗 (𝐕𝐄 𝐖𝐨𝐫𝐭𝐡𝐚𝐛𝐥𝐞)": "gift-box",
   })[category] ?? slugify(category);
 
-export const CATEGORIES: Category[] = [...BASE_CATEGORIES, GIFT_BOXES].map((category) => ({
+export const CATEGORIES: Category[] = BASE_CATEGORIES.map((category) => ({
   ...category,
   products: category.products.map((product) => ({
     ...product,
@@ -886,7 +877,7 @@ export const CATEGORIES: Category[] = [...BASE_CATEGORIES, GIFT_BOXES].map((cate
             ? 160
             : product.caseOnly
               ? (product.casePrice ?? product.price)
-              : category.priceIsFinal || category.name === "Gift Boxes"
+              : category.priceIsFinal
                 ? (PDF_RATES[product.name] ?? product.rate)
                 : Math.round((PDF_RATES[product.name] ?? product.rate) * 0.1),
     image: (() => {
