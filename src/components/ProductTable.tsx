@@ -184,7 +184,7 @@ export function ProductTable({
                 aria-label={`View details of ${p.name}`}
                 className="mx-auto block"
               >
-                {!hideImages && imageUrl ? (
+                {(p.showImage || !hideImages) && imageUrl ? (
                   <img
                     src={imageUrl}
                     alt={p.name}
