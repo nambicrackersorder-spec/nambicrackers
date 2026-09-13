@@ -7,11 +7,19 @@ export type Product = {
   price: number;
   slug: string;
   image: string | null;
+  showImage?: boolean;
+  caseOnly?: boolean;
+  caseQuantity?: number;
+  caseValue?: number;
+  caseDiscount?: number;
+  casePrice?: number;
 };
 
 export type Category = {
   name: string;
   products: Product[];
+  hideImages?: boolean;
+  priceIsFinal?: boolean;
 };
 
 export const slugify = (s: string) =>
@@ -42,6 +50,57 @@ const p = (
   };
 };
 
+const caseP = (
+  name: string,
+  items: number,
+  boxPrice: number,
+  caseQuantity: number,
+  caseValue: number,
+  caseDiscount: number,
+  casePrice: number,
+  image: string | null,
+): Product => ({
+  ...p(name, `${items} items`, boxPrice, "1 Case", casePrice, image),
+  caseOnly: true,
+  caseQuantity,
+  caseValue,
+  caseDiscount,
+  casePrice,
+});
+
+const MONEY_BANK: Category = {
+  name: "Money Bank",
+  products: [
+    p("Money Bank Mega (2 Pcs)", "மணி பேங்க் மெகா", 1760, "1 Box", 176),
+    p("Money Bank Mini (3 Pcs)", "மணி பேங்க் மினி", 1430, "1 Box", 143),
+  ],
+};
+
+const AADYA_GIFT_BOXES: Category = {
+  name: "𝐆𝐈𝐅𝐓 𝐁𝐎𝐗 (𝐀𝐚𝐝𝐲𝐚'𝐬 𝐐𝐮𝐚𝐥𝐢𝐭𝐲)",
+  products: [
+    p("Kids Zone", "30 items", 4400, "30 Items", 440, "Gift Box/Kids Zone (30 Items).jpeg"),
+    p("Classical", "40 items", 6600, "40 Items", 660, "Gift Box/Classical (40 Items).jpeg"),
+    p("Elegant Party", "50 items", 9500, "50 Items", 950, "Gift Box/Elegant Party (50 Items).jpeg"),
+    p("Celebration Gift Box", "Celebration Gift Box", 17500, "1 Box", 1750, "Gift Box/Celebration box.jpeg"),
+  ],
+};
+
+const VE_GIFT_BOXES: Category = {
+  name: "𝐆𝐈𝐅𝐓 𝐁𝐎𝐗 (𝐕𝐄 𝐖𝐨𝐫𝐭𝐡𝐚𝐛𝐥𝐞)",
+  priceIsFinal: true,
+  products: [
+    caseP("Kids", 1, 299, 28, 83720, 75348, 8372, "Gift Box/Kids.jpeg"),
+    caseP("Lolly Pop", 27, 399, 24, 95760, 86184, 9576, "Gift Box/Lolly pop (27 items).jpeg"),
+    caseP("Little Hero", 33, 489, 22, 107580, 96822, 10758, "Gift Box/Little hero (33 items).jpeg"),
+    caseP("Heritage", 36, 589, 20, 117800, 106020, 11780, "Gift Box/Heritage (36 items).jpeg"),
+    caseP("Knight Warrior", 39, 599, 18, 107820, 97038, 10782, "Gift Box/Knight warrior (39 items).jpeg"),
+    caseP("Luxury", 42, 649, 16, 103840, 93456, 10384, "Gift Box/Luxury (42 items).jpeg"),
+    caseP("Divine", 54, 999, 12, 119880, 107892, 11988, "Gift Box/Divine (54 items).jpeg"),
+    caseP("Hathi", 80, 1999, 6, 119940, 107946, 11994, "Gift Box/Hathi ( 80 items).jpeg"),
+  ],
+};
+
 const BASE_CATEGORIES: Category[] = [
   {
     name: "One Sound Crackers",
@@ -56,28 +115,28 @@ const BASE_CATEGORIES: Category[] = [
     ],
   },
   {
-    name: "Giant & Deluxe Crackers",
+    name: "MINI DIGITAL",
     products: [
-      p("28 Chorsa", "28 சோர்சா", 120, "1 Pkt"),
-      p("28 Giant", "28 ஜெயன்ட்", 200, "1 Pkt"),
-      p("56 Giant", "56 ஜெயன்ட்", 390, "1 Pkt"),
-      p("24 Deluxe", "24 டிலக்ஸ்", 350, "1 Pkt"),
-      p("50 Deluxe", "50 டிலக்ஸ்", 800, "1 Pkt"),
-      p("100 Deluxe", "100 டிலக்ஸ்", 1400, "1 Pkt"),
+      p("28 Chorsa", "28 சோர்சா", 120, "1 Pkt", undefined, "Digital/28-chorsa.jpg"),
+      p("28 Giant", "28 ஜெயன்ட்", 200, "1 Pkt", undefined, "Digital/28-giant.jpg"),
+      p("56 Giant", "56 ஜெயன்ட்", 390, "1 Pkt", undefined, "Digital/56-giant.jpg"),
+      p("24 Deluxe", "24 டிலக்ஸ்", 350, "1 Pkt", undefined, "Digital/24-deluxe.jpg"),
+      p("50 Deluxe", "50 டீலக்ஸ்", 800, "1 Pkt", undefined, "Digital/50-deluxe.jpg"),
+      p("100 Deluxe", "100 டீலக்ஸ்", 1400, "1 Pkt", undefined, "Digital/100-deluxe.jpg"),
     ],
   },
   {
-    name: "Day Festival Crackers",
+    name: "MEGA DIGITAL",
     products: [
-      p("100 Wala", "100 வாலா", 320, "1 Box"),
-      p("1000 Wala", "1000 வாலா", 1500, "1 Box"),
-      p("2000 Wala", "2000 வாலா", 3000, "1 Box"),
-      p("5000 Wala", "5000 வாலா", 7500, "1 Box"),
-      p("10000 Wala", "10000 வாலா", 15000, "1 Box"),
-      p("1000 Wala Premium (Full)", "1000 வாலா பிரிமியம் (புல்)", 2200, "1 Box"),
-      p("2000 Wala Premium (Full)", "2000 வாலா பிரிமியம் (புல்)", 4400, "1 Box"),
-      p("5000 Wala Premium (Full)", "5000 வாலா பிரிமியம் (புல்)", 11000, "1 Box"),
-      p("10000 Wala Premium (Full)", "10000 வாலா பிரிமியம் (புல்)", 22000, "1 Box"),
+      p("100 Digital", "100 வாலா", 320, "1 Box", undefined, "Digital/100-wala.jpg"),
+      p("1000 Digital", "1000 வாலா", 1500, "1 Box", undefined, "Digital/1000-wala.jpg"),
+      p("2000 Digital", "2000 வாலா", 3000, "1 Box", undefined, "Digital/2000-wala.jpg"),
+      p("5000 Digital", "5000 வாலா", 7500, "1 Box", undefined, "Digital/5000-wala.jpg"),
+      p("10000 Digital", "10000 வாலா", 15000, "1 Box", undefined, "Digital/10000-wala.jpg"),
+      p("1000 Digital Premium (Full)", "1000 வாலா பிரிமியம் (புல்)", 2200, "1 Box", undefined, "Digital/1000-wala-premium-full.jpg"),
+      p("2000 Digital Premium (Full)", "2000 வாலா பிரிமியம் (புல்)", 4400, "1 Box", undefined, "Digital/2000-wala-premium-full.jpg"),
+      p("5000 Digital Premium (Full)", "5000 வாலா பிரிமியம் (புல்)", 11000, "1 Box", undefined, "Digital/5000-wala-premium-full.jpg"),
+      p("10000 Digital Premium (Full)", "10000 வாலா பிரிமியம் (புல்)", 22000, "1 Box", undefined, "Digital/10000-wala-premium-full.jpg"),
     ],
   },
   {
@@ -131,13 +190,17 @@ const BASE_CATEGORIES: Category[] = [
   },
   {
     name: "Paper Bombs",
+    hideImages: true,
     products: [
       p("¼ Paper Bomb", "பேப்பர் பாம்", 400, "1 Box"),
       p("½ Paper Bomb", "பேப்பர் பாம்", 800, "1 Box"),
       p("1 Kg Paper Bomb", "1 Kg பேப்பர் பாம்", 1600, "1 Box"),
-      p("Destro Bomb (3 Pcs)", "டெஸ்ட்ரோ பாம் (3 பீஸ்)", 800, "1 Box"),
+      { ...p("Destro Bomb (3 Pcs)", "டெஸ்ட்ரோ பாம் (3 பீஸ்)", 800, "1 Box"), showImage: true },
     ],
   },
+  MONEY_BANK,
+  AADYA_GIFT_BOXES,
+  VE_GIFT_BOXES,
   {
     name: "Peacock's",
     products: [
@@ -278,13 +341,6 @@ const BASE_CATEGORIES: Category[] = [
     ],
   },
   {
-    name: "Money Bank",
-    products: [
-      p("Money Bank Mega (2 Pcs)", "மணி பேங்க் மெகா", 1760, "1 Box", 176),
-      p("Money Bank Mini (3 Pcs)", "மணி பேங்க் மினி", 1430, "1 Box", 143),
-    ],
-  },
-  {
     name: "Sky Shots Series",
     products: [
       p("Chotta Fancy", "சோட்டா பேன்சி", 300, "1 Box"),
@@ -372,15 +428,15 @@ const PDF_RATES: Record<string, number> = {
   "24 Deluxe": 390,
   "50 Deluxe": 880,
   "100 Deluxe": 1540,
-  "100 Wala": 350,
-  "1000 Wala": 1650,
-  "2000 Wala": 3300,
-  "5000 Wala": 8250,
-  "10000 Wala": 16500,
-  "1000 Wala Premium (Full)": 2420,
-  "2000 Wala Premium (Full)": 4840,
-  "5000 Wala Premium (Full)": 12100,
-  "10000 Wala Premium (Full)": 24200,
+  "100 Digital": 350,
+  "1000 Digital": 1650,
+  "2000 Digital": 3300,
+  "5000 Digital": 8250,
+  "10000 Digital": 16500,
+  "1000 Digital Premium (Full)": 2420,
+  "2000 Digital Premium (Full)": 4840,
+  "5000 Digital Premium (Full)": 12100,
+  "10000 Digital Premium (Full)": 24200,
   "Red Bijili Crackers (50 Pcs)": 170,
   "Red Bijili Crackers (100 Pcs)": 330,
   "12 Shots": 1210,
@@ -552,15 +608,15 @@ const IMAGE_IDS: Record<string, string> = {
   '4" Lakshmi Deluxe': "4-lakshmi-delexue",
   '5" Lakshmi': "5-lakshmi",
   '6" Lakshmi': "6-lakshmi",
-  "100 Wala": "100-wala",
-  "1000 Wala": "1000-off",
-  "1000 Wala Premium (Full)": "1000-wala-full",
-  "2000 Wala": "2000-wala",
-  "2000 Wala Premium (Full)": "2000-full",
-  "5000 Wala": "5000-wala",
-  "5000 Wala Premium (Full)": "5k-full",
-  "10000 Wala": "10000-off",
-  "10000 Wala Premium (Full)": "10000-full",
+  "100 Digital": "100-wala",
+  "1000 Digital": "1000-off",
+  "1000 Digital Premium (Full)": "1000-wala-full",
+  "2000 Digital": "2000-wala",
+  "2000 Digital Premium (Full)": "2000-full",
+  "5000 Digital": "5000-wala",
+  "5000 Digital Premium (Full)": "5k-full",
+  "10000 Digital": "10000-off",
+  "10000 Digital Premium (Full)": "10000-full",
   "1½' Twinkling Stars": "11-2-t-star",
   "4' Twinkling Stars": "4-twinkling-star",
   Icone: "icone",
@@ -671,15 +727,15 @@ const CATEGORY_IMAGE_IDS: Record<string, string> = {
   "24 Deluxe": "giant-deluxe-crackers/24-delexue",
   "50 Deluxe": "giant-deluxe-crackers/50-deluxe",
   "100 Deluxe": "giant-deluxe-crackers/100-deluxe",
-  "100 Wala": "day-festival-crackers/100-wala",
-  "1000 Wala": "day-festival-crackers/1000-off",
-  "1000 Wala Premium (Full)": "day-festival-crackers/1000-wala-full",
-  "2000 Wala": "day-festival-crackers/2000-wala",
-  "2000 Wala Premium (Full)": "day-festival-crackers/2000-full",
-  "5000 Wala": "day-festival-crackers/5000-wala",
-  "5000 Wala Premium (Full)": "day-festival-crackers/5k-full",
-  "10000 Wala": "day-festival-crackers/10000-off",
-  "10000 Wala Premium (Full)": "day-festival-crackers/10000-full",
+  "100 Digital": "day-festival-crackers/100-wala",
+  "1000 Digital": "day-festival-crackers/1000-off",
+  "1000 Digital Premium (Full)": "day-festival-crackers/1000-wala-full",
+  "2000 Digital": "day-festival-crackers/2000-wala",
+  "2000 Digital Premium (Full)": "day-festival-crackers/2000-full",
+  "5000 Digital": "day-festival-crackers/5000-wala",
+  "5000 Digital Premium (Full)": "day-festival-crackers/5k-full",
+  "10000 Digital": "day-festival-crackers/10000-off",
+  "10000 Digital Premium (Full)": "day-festival-crackers/10000-full",
   "12 Shots": "night-festival-multicolour-shots/12-shots",
   "12 Shots Ak": "night-festival-multicolour-shots/12-shots-ak",
   "25 Shots Rider": "night-festival-multicolour-shots/25-rider",
@@ -809,37 +865,39 @@ const CATEGORY_IMAGE_IDS: Record<string, string> = {
 
 const sourceCategory = (category: string): string | null =>
   ({
+    "MINI DIGITAL": "giant-deluxe-crackers",
+    "MEGA DIGITAL": "day-festival-crackers",
     "Fancy Wheels": "ground-chakkars",
     "Money Bank": "money-bank",
     "Gift Boxes": "gift-box",
   })[category] ?? slugify(category);
 
-export const CATEGORIES: Category[] = [...BASE_CATEGORIES, GIFT_BOXES]
-  .map((category) => ({
-    ...category,
-    products: category.products.map((product) => ({
-      ...product,
-      rate: PDF_RATES[product.name] ?? product.rate,
-      price:
-        product.name === "Icone"
-          ? 298
-          : product.name === "Orion"
-            ? 170
-            : product.name === "Zulu Fountain"
-              ? 160
-              : category.name === "Gift Boxes"
+export const CATEGORIES: Category[] = [...BASE_CATEGORIES, GIFT_BOXES].map((category) => ({
+  ...category,
+  products: category.products.map((product) => ({
+    ...product,
+    rate: PDF_RATES[product.name] ?? product.rate,
+    price:
+      product.name === "Icone"
+        ? 298
+        : product.name === "Orion"
+          ? 170
+          : product.name === "Zulu Fountain"
+            ? 160
+            : product.caseOnly
+              ? (product.casePrice ?? product.price)
+              : category.priceIsFinal || category.name === "Gift Boxes"
                 ? (PDF_RATES[product.name] ?? product.rate)
                 : Math.round((PDF_RATES[product.name] ?? product.rate) * 0.1),
-      image: (() => {
-        if (NO_IMAGE_PRODUCTS.has(product.name)) return null;
-        const categoryId = sourceCategory(category.name);
-        if (!categoryId) return null;
-        const imageId = CATEGORY_IMAGE_IDS[product.name] ?? IMAGE_IDS[product.name];
-        if (!imageId) return null;
-        return imageId.includes("/") ? imageId : `${categoryId}/${imageId}`;
-      })(),
-    })),
-  }))
-  .filter((category) => category.products.length > 0);
+    image: (() => {
+      if (NO_IMAGE_PRODUCTS.has(product.name)) return null;
+      const categoryId = sourceCategory(category.name);
+      if (!categoryId) return null;
+      const imageId = product.image ?? CATEGORY_IMAGE_IDS[product.name] ?? IMAGE_IDS[product.name];
+      if (!imageId) return null;
+      return imageId.includes("/") ? imageId : `${categoryId}/${imageId}`;
+    })(),
+  })),
+})).filter((category) => category.products.length > 0);
 
 export const ALL_PRODUCTS: Product[] = CATEGORIES.flatMap((c) => c.products);

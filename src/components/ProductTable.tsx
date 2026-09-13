@@ -3,6 +3,28 @@ import { Minus, Plus, X } from "lucide-react";
 import type { Category, Product } from "@/data/products";
 import { productImageUrl } from "@/lib/product-image";
 
+const GIFT_BOX_CLOUDINARY_IDS: Record<string, string> = {
+  Kids: "Kids",
+  "Lolly Pop": "Lolly_pop_27_items",
+  "Little Hero": "Little_hero_33_items",
+  Heritage: "Heritage_36_items",
+  "Knight Warrior": "Knight_warrior_39_items",
+  Luxury: "Luxury_42_items",
+  Divine: "Divine_54_items",
+  Hathi: "Hathi_80_items",
+  "Kids Zone": "Kids_Zone_30_Items",
+  Classical: "Classical_40_Items",
+  "Elegant Party": "Elegant_Party_50_Items",
+  "Celebration Gift Box": "Celebration_box",
+};
+
+const productImageUrlForTable = (product: Product) => {
+  const cloudinaryId = GIFT_BOX_CLOUDINARY_IDS[product.name];
+  return cloudinaryId
+    ? `https://res.cloudinary.com/qnlmwgwy/image/upload/f_auto,q_auto/${cloudinaryId}`
+    : productImageUrl(product);
+};
+
 export function QtyControl({
   value,
   onChange,
@@ -47,9 +69,21 @@ export function QtyControl({
 // Keep every column visible; the product name absorbs the remaining width.
 const ROW =
   "grid grid-cols-[44px_minmax(48px,1fr)_32px_32px_40px_82px] items-center gap-1 max-[360px]:grid-cols-[36px_minmax(24px,1fr)_26px_28px_48px_58px] max-[360px]:gap-0 sm:grid-cols-[64px_minmax(90px,1fr)_56px_48px_60px_110px] sm:gap-2 lg:grid-cols-[80px_minmax(120px,1fr)_90px_70px_90px_160px]";
+const TEXT_ONLY_ROW =
+  "grid grid-cols-[minmax(48px,1fr)_32px_32px_40px_82px] items-center gap-1 max-[360px]:grid-cols-[minmax(24px,1fr)_26px_28px_48px_58px] max-[360px]:gap-0 sm:grid-cols-[minmax(90px,1fr)_56px_48px_60px_110px] sm:gap-2 lg:grid-cols-[minmax(120px,1fr)_90px_70px_90px_160px]";
 
-function ProductDetailModal({ product, onClose }: { product: Product; onClose: () => void }) {
-  const imageUrl = productImageUrl(product);
+const formatPrice = (value: number) =>
+  value.toLocaleString("en-IN", { minimumFractionDigits: value % 1 ? 2 : 0 });
+function ProductDetailModal({
+  product,
+  onClose,
+  hideImage,
+}: {
+  product: Product;
+  onClose: () => void;
+  hideImage: boolean;
+}) {
+  const imageUrl = productImageUrlForTable(product);
 
   return (
     <div
@@ -71,17 +105,17 @@ function ProductDetailModal({ product, onClose }: { product: Product; onClose: (
             <X className="h-5 w-5" />
           </button>
         </div>
-        {imageUrl ? (
+        {!hideImage && imageUrl ? (
           <img
             src={imageUrl}
             alt={product.name}
             className="mt-3 h-48 w-full rounded-lg border border-border object-cover"
           />
-        ) : (
+        ) : !hideImage ? (
           <div className="mt-3 flex h-48 items-center justify-center rounded-lg border border-dashed border-border bg-muted text-sm text-muted-foreground">
             Image unavailable
           </div>
-        )}
+        ) : null}
         <p className="mt-3 text-sm leading-snug text-muted-foreground">{product.tamil}</p>
         <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
           <div className="rounded bg-muted p-2">
@@ -112,13 +146,22 @@ export function ProductTable({
   setValue: (id: number, v: number) => void;
 }) {
   const [selected, setSelected] = useState<Product | null>(null);
+  const hideImages = cat.name === "Paper Bombs";
+  const showImageColumn = !hideImages || cat.products.some((product) => product.showImage);
+  const caseOnly = cat.products.some((product) => product.caseOnly);
+  const rowClass = showImageColumn ? ROW : TEXT_ONLY_ROW;
 
   return (
     <div className="overflow-hidden rounded-b-md border border-t-0 border-border bg-card">
+      {caseOnly && (
+        <div className="border-b border-border bg-accent/25 px-3 py-2 text-center text-xs font-bold uppercase tracking-wide text-primary">
+          ONLY CASE ORDERS
+        </div>
+      )}
       <div
-        className={`${ROW} border-b border-border bg-secondary px-2 py-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground max-[360px]:px-1 sm:px-3 sm:text-[10px] lg:text-xs`}
+        className={`${rowClass} border-b border-border bg-secondary px-2 py-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground max-[360px]:px-1 sm:px-3 sm:text-[10px] lg:text-xs`}
       >
-        <span className="text-center">Image</span>
+        {showImageColumn && <span className="text-center">Image</span>}
         <span className="text-center">Product Name</span>
         <span className="text-center">Price</span>
         <span className="text-center">Unit</span>
@@ -128,31 +171,33 @@ export function ProductTable({
 
       {cat.products.map((p) => {
         const n = qty[p.id] ?? 0;
-        const imageUrl = productImageUrl(p);
+        const imageUrl = productImageUrlForTable(p);
         return (
           <div
             key={p.id}
-            className={`${ROW} border-t border-border px-2 py-2 first:border-t-0 max-[360px]:px-1 sm:px-3 sm:py-2.5`}
+            className={`${rowClass} border-t border-border px-2 py-2 first:border-t-0 max-[360px]:px-1 sm:px-3 sm:py-2.5`}
           >
-            <button
-              type="button"
-              onClick={() => setSelected(p)}
-              aria-label={`View details of ${p.name}`}
-              className="mx-auto block"
-            >
-              {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={p.name}
-                  loading="lazy"
-                  className="h-12 w-12 rounded border border-border object-cover max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16"
-                />
-              ) : (
-                <span className="flex h-12 w-12 items-center justify-center rounded border border-dashed border-border bg-muted px-1 text-center text-[8px] leading-tight text-muted-foreground max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16">
-                  No image
-                </span>
-              )}
-            </button>
+            {showImageColumn && (
+              <button
+                type="button"
+                onClick={() => setSelected(p)}
+                aria-label={`View details of ${p.name}`}
+                className="mx-auto block"
+              >
+                {(!hideImages || p.showImage) && imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={p.name}
+                    loading="lazy"
+                    className="h-12 w-12 rounded border border-border object-cover max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16"
+                  />
+                ) : !hideImages || p.showImage ? (
+                  <span className="flex h-12 w-12 items-center justify-center rounded border border-dashed border-border bg-muted px-1 text-center text-[8px] leading-tight text-muted-foreground max-[360px]:h-9 max-[360px]:w-9 sm:h-14 sm:w-14 lg:h-16 lg:w-16">
+                    No image
+                  </span>
+                ) : null}
+              </button>
+            )}
 
             <div className="min-w-0 text-center">
               <button
@@ -169,10 +214,17 @@ export function ProductTable({
               >
                 {p.tamil}
               </button>
+              {p.caseOnly && (
+                <div className="mt-1 text-[9px] leading-tight text-muted-foreground sm:text-xs">
+                  <div>Per box: {formatPrice(p.rate)}</div>
+                  <div>{p.caseQuantity} boxes per case</div>
+                  <div>Original per case: {formatPrice(p.caseValue ?? 0)}</div>
+                </div>
+              )}
             </div>
 
             <span className="text-center text-[10px] text-muted-foreground line-through sm:text-sm">
-              {p.rate}
+              {p.caseOnly ? formatPrice(p.caseValue ?? p.rate) : p.rate}
             </span>
             <span className="text-center text-[9px] text-muted-foreground sm:text-xs">
               {p.unit}
@@ -187,7 +239,13 @@ export function ProductTable({
         );
       })}
 
-      {selected && <ProductDetailModal product={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ProductDetailModal
+          product={selected}
+          hideImage={hideImages && !selected.showImage}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }

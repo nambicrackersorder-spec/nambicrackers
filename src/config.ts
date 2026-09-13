@@ -5,6 +5,7 @@
 export const APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbznYYWlNZtMQhiaOmRV2UuRFWpS-SCasEayVk6cgP0BIsPRKhOP1-emJuNAlX6JWvgv9w/exec";
 
+export const CLOUDINARY_CLOUD_NAME = "qnlmwgwy";
 
 export const SHOP = {
   name: "Nambi Crackers",
