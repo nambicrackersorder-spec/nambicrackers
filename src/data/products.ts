@@ -90,7 +90,7 @@ const VE_GIFT_BOXES: Category = {
   name: "𝐆𝐈𝐅𝐓 𝐁𝐎𝐗 (𝐕𝐄 𝐖𝐨𝐫𝐭𝐡𝐚𝐛𝐥𝐞)",
   priceIsFinal: true,
   products: [
-    caseP("Kids", 1, 299, 28, 83720, 75348, 8372, "Gift Box/Kids.jpeg"),
+    caseP("Kids", 21, 299, 28, 83720, 75348, 8372, "Gift Box/Kids.jpeg"),
     caseP("Lolly Pop", 27, 399, 24, 95760, 86184, 9576, "Gift Box/Lolly pop (27 items).jpeg"),
     caseP("Little Hero", 33, 489, 22, 107580, 96822, 10758, "Gift Box/Little hero (33 items).jpeg"),
     caseP("Heritage", 36, 589, 20, 117800, 106020, 11780, "Gift Box/Heritage (36 items).jpeg"),
