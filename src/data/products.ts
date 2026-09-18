@@ -86,21 +86,6 @@ const AADYA_GIFT_BOXES: Category = {
   ],
 };
 
-const VE_GIFT_BOXES: Category = {
-  name: "𝐆𝐈𝐅𝐓 𝐁𝐎𝐗 (𝐕𝐄 𝐖𝐨𝐫𝐭𝐡𝐚𝐛𝐥𝐞)",
-  priceIsFinal: true,
-  products: [
-    caseP("Kids", 21, 299, 28, 83720, 75348, 8372, "Gift Box/Kids.jpeg"),
-    caseP("Lolly Pop", 27, 399, 24, 95760, 86184, 9576, "Gift Box/Lolly pop (27 items).jpeg"),
-    caseP("Little Hero", 33, 489, 22, 107580, 96822, 10758, "Gift Box/Little hero (33 items).jpeg"),
-    caseP("Heritage", 36, 589, 20, 117800, 106020, 11780, "Gift Box/Heritage (36 items).jpeg"),
-    caseP("Knight Warrior", 39, 599, 18, 107820, 97038, 10782, "Gift Box/Knight warrior (39 items).jpeg"),
-    caseP("Luxury", 42, 649, 16, 103840, 93456, 10384, "Gift Box/Luxury (42 items).jpeg"),
-    caseP("Divine", 54, 999, 12, 119880, 107892, 11988, "Gift Box/Divine (54 items).jpeg"),
-    caseP("Hathi", 80, 1999, 6, 119940, 107946, 11994, "Gift Box/Hathi ( 80 items).jpeg"),
-  ],
-};
-
 const BASE_CATEGORIES: Category[] = [
   {
     name: "One Sound Crackers",
@@ -401,7 +386,6 @@ const BASE_CATEGORIES: Category[] = [
     ],
   },
   AADYA_GIFT_BOXES,
-  VE_GIFT_BOXES,
 ];
 
 const PDF_RATES: Record<string, number> = {
