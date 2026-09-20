@@ -187,7 +187,7 @@ function OrdersDashboard() {
                 key={`${o.timestamp}-${i}`}
                 className="rounded-lg border border-border bg-card p-4 shadow-sm"
               >
-                <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h2 className="text-lg font-bold text-primary">
                       {o.name || "Customer"}
@@ -202,7 +202,7 @@ function OrdersDashboard() {
                       {status}
                     </span>
                   </div>
-                  <div className="flex flex-wrap justify-end gap-2">
+                  <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
                     <select
                       value={status}
                       disabled={statusMutation.isPending}
@@ -213,7 +213,7 @@ function OrdersDashboard() {
                         })
                       }
                       aria-label={`Update status for ${o.orderId}`}
-                      className={`rounded-md border px-3 py-2 text-sm font-semibold outline-none ${STATUS_STYLES[status]}`}
+                      className={`col-span-2 w-full rounded-md border px-3 py-2 text-sm font-semibold outline-none sm:col-span-1 sm:w-auto ${STATUS_STYLES[status]}`}
                     >
                       {STATUSES.map((option) => (
                         <option key={option} value={option}>
@@ -226,7 +226,7 @@ function OrdersDashboard() {
                         href={waLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded-md bg-[#25D366] px-3 py-2 text-sm font-semibold text-white shadow hover:opacity-90"
+                        className="w-full rounded-md bg-[#25D366] px-3 py-2 text-center text-sm font-semibold text-white shadow hover:opacity-90 sm:w-auto"
                       >
                         WhatsApp
                       </a>
@@ -234,7 +234,7 @@ function OrdersDashboard() {
                     {mailLink && (
                       <a
                         href={mailLink}
-                        className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow hover:opacity-90"
+                        className="w-full rounded-md bg-primary px-3 py-2 text-center text-sm font-semibold text-primary-foreground shadow hover:opacity-90 sm:w-auto"
                       >
                         Email
                       </a>
