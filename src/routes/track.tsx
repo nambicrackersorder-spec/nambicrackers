@@ -38,6 +38,12 @@ type TrackResult = {
   items: string;
 };
 
+const parseOrderItems = (items: string) =>
+  items
+    .split(/\|\s*|\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 const STEPS = [
   { key: "Confirmed", label: "Order Confirmed", icon: CheckCircle2 },
   { key: "In Transit", label: "In Transit", icon: Truck },
@@ -122,55 +128,81 @@ function TrackPage() {
               0,
               STEPS.findIndex((s) => s.key === (o.status || "Confirmed")),
             );
+            const itemRows = parseOrderItems(o.items);
             return (
               <article
                 key={o.orderId}
-                className="rounded-xl border border-border bg-card p-5 shadow-sm"
+                className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
               >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <h2 className="text-lg font-bold text-primary">{o.orderId}</h2>
-                    <p className="text-xs text-muted-foreground">
-                      {o.name} &middot; {o.timestamp}
-                    </p>
-                  </div>
-                  <div className="text-right text-sm">
-                    <p className="font-bold">Rs {o.totalAmount}</p>
-                    <p className="text-xs text-muted-foreground">{o.totalQty} items</p>
+                <div className="border-b border-border bg-muted/40 px-5 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        Order ID
+                      </p>
+                      <h2 className="mt-1 text-xl font-bold text-primary">{o.orderId}</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {o.name} &middot; {o.timestamp}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        Total
+                      </p>
+                      <p className="mt-1 text-2xl font-bold text-primary">₹{o.totalAmount}</p>
+                      <p className="text-xs text-muted-foreground">{o.totalQty} items</p>
+                    </div>
                   </div>
                 </div>
 
-                <ol className="mt-5 space-y-4">
-                  {STEPS.map((s, i) => {
-                    const done = i <= current;
-                    const Icon = done ? s.icon : Circle;
-                    return (
-                      <li key={s.key} className="flex items-center gap-3">
-                        <span
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                            done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <span
-                          className={`text-sm ${done ? "font-semibold" : "text-muted-foreground"}`}
-                        >
-                          {s.label}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ol>
+                <div className="px-5 py-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-foreground">Order status</p>
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                      {o.status || "Confirmed"}
+                    </span>
+                  </div>
 
-                <details className="mt-4">
-                  <summary className="cursor-pointer text-sm font-semibold text-primary">
-                    View items
-                  </summary>
-                  <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">
-                    {o.items}
-                  </pre>
-                </details>
+                  <ol className="space-y-3">
+                    {STEPS.map((s, i) => {
+                      const done = i <= current;
+                      const Icon = done ? s.icon : Circle;
+                      return (
+                        <li key={s.key} className="flex items-center gap-3">
+                          <span
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                              done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <span
+                            className={`text-sm ${done ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                          >
+                            {s.label}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+
+                  <div className="mt-5 rounded-xl border border-border bg-muted/30 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-foreground">View items</p>
+                      <span className="text-xs text-muted-foreground">{itemRows.length} items</span>
+                    </div>
+                    <ul className="space-y-2">
+                      {itemRows.map((item, idx) => (
+                        <li
+                          key={`${o.orderId}-${idx}`}
+                          className="rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed text-foreground"
+                        >
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </article>
             );
           })}

@@ -55,10 +55,24 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.action === 'track') {
     return trackOrders_(e.parameter.query || '');
   }
+  if (e && e.parameter && e.parameter.action === 'updateStatus') {
+    return updateStatus_(e.parameter);
+  }
   return handleRequest(e);
 }
 
 function doPost(e) {
+  try {
+    if (e && e.parameter && e.parameter.action === 'updateStatus') {
+      return updateStatus_(e.parameter);
+    }
+    if (e && e.postData && e.postData.contents) {
+      var body = JSON.parse(e.postData.contents);
+      if (body && body.action === 'updateStatus') {
+        return updateStatus_(body);
+      }
+    }
+  } catch (ignore) {}
   return handleRequest(e);
 }
 
@@ -389,6 +403,45 @@ function applyStatusValidation_(sheet, row) {
     .setAllowInvalid(false)
     .build();
   sheet.getRange(row, STATUS_COL).setDataValidation(rule);
+}
+
+function updateStatus_(params) {
+  try {
+    var orderId = String(params.orderId || '').trim();
+    var status = String(params.status || 'Confirmed').trim();
+    if (!orderId) {
+      return json_({ success: false, error: 'Order ID is required.' });
+    }
+    if (STATUSES.indexOf(status) === -1) {
+      status = 'Confirmed';
+    }
+
+    var sheet = getSheet_();
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+      return json_({ success: false, error: 'No order found.' });
+    }
+
+    var rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+    var rowIndex = -1;
+    for (var i = 0; i < rows.length; i++) {
+      if (String(rows[i][1] || '') === orderId) {
+        rowIndex = i + 2;
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      return json_({ success: false, error: 'Order not found.' });
+    }
+
+    var target = sheet.getRange(rowIndex, STATUS_COL);
+    colorStatus_(target, status);
+
+    return json_({ success: true, orderId: orderId, status: status });
+  } catch (err) {
+    return json_({ success: false, error: String(err) });
+  }
 }
 
 function json_(obj) {
