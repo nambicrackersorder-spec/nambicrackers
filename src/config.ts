@@ -3,7 +3,7 @@
  * (Deploy > New deployment > Web app > Anyone).
  */
 export const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbznYYWlNZtMQhiaOmRV2UuRFWpS-SCasEayVk6cgP0BIsPRKhOP1-emJuNAlX6JWvgv9w/exec";
+  "https://script.google.com/macros/s/AKfycbxwyop_x0UmqVyW65SMi_pz6eFwbIGP9T0jcHlcSFjSm8zXolTvaxbWt3uuCNYJHLhgog/exec";
 
 export const CLOUDINARY_CLOUD_NAME = "qnlmwgwy";
 

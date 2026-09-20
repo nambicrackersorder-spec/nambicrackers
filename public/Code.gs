@@ -7,6 +7,8 @@
  * 3. Deploy > New deployment > type "Web app".
  *      Execute as: Me      Who has access: Anyone
  * 4. Copy the /exec URL and paste it into src/config.ts (APPS_SCRIPT_URL).
+ * 5. Run setupStatusEmailTrigger once from the Apps Script editor and approve
+ *    permissions so manual Status edits in Sheets can email customers.
  *
  * Both doGet(e) and doPost(e) are handled. Orders are appended to the
  * "Responses" tab and the invoice PDF is emailed to the shop and customer.
@@ -43,9 +45,11 @@ var C_CREAM = '#fffdf8';
 var C_CREAM_ALT = '#faf3e3';
 var STATUS_COLORS = {
   'Confirmed': { bg: '#fff3cd', fg: '#7a5c00' },
-  'In Transit': { bg: '#dbeafe', fg: '#1e40af' },
+  'Payment Completed': { bg: '#e0e7ff', fg: '#3730a3' },
+  'Shipped': { bg: '#dbeafe', fg: '#1e40af' },
   'Delivered': { bg: '#dcfce7', fg: '#166534' }
 };
+var STATUSES = ['Confirmed', 'Payment Completed', 'Shipped', 'Delivered'];
 
 
 function doGet(e) {
@@ -56,23 +60,23 @@ function doGet(e) {
     return trackOrders_(e.parameter.query || '');
   }
   if (e && e.parameter && e.parameter.action === 'updateStatus') {
-    return updateStatus_(e.parameter);
+    return updateStatus_(e.parameter.orderId, e.parameter.status);
   }
   return handleRequest(e);
 }
 
 function doPost(e) {
-  try {
-    if (e && e.parameter && e.parameter.action === 'updateStatus') {
-      return updateStatus_(e.parameter);
-    }
-    if (e && e.postData && e.postData.contents) {
+  if (e && e.parameter && e.parameter.action === 'updateStatus') {
+    return updateStatus_(e.parameter.orderId, e.parameter.status);
+  }
+  if (e && e.postData && e.postData.contents) {
+    try {
       var body = JSON.parse(e.postData.contents);
-      if (body && body.action === 'updateStatus') {
-        return updateStatus_(body);
+      if (body.action === 'updateStatus') {
+        return updateStatus_(body.orderId, body.status);
       }
-    }
-  } catch (ignore) {}
+    } catch (ignore) {}
+  }
   return handleRequest(e);
 }
 
@@ -130,6 +134,7 @@ function handleRequest(e) {
     sheet.getRange(row, 10).setWrap(true);
     sheet.setRowHeight(row, Math.max(21, items.split(String.fromCharCode(10)).length * 16));
     colorStatus_(sheet.getRange(row, STATUS_COL), 'Confirmed');
+    rememberStatus_(row, 'Confirmed');
 
     var mail = sendInvoiceMails_(params, orderId, items);
 
@@ -328,7 +333,9 @@ function getSheet_() {
   if (lastRow > 1) {
     var statusVals = sheet.getRange(2, STATUS_COL, lastRow - 1, 1).getValues();
     for (var i = 0; i < statusVals.length; i++) {
-      colorStatus_(sheet.getRange(i + 2, STATUS_COL), String(statusVals[i][0] || 'Confirmed'));
+      var existingStatus = normalizeStatus_(String(statusVals[i][0] || 'Confirmed'));
+      colorStatus_(sheet.getRange(i + 2, STATUS_COL), existingStatus);
+      rememberStatus_(i + 2, existingStatus);
     }
   }
 
@@ -341,14 +348,23 @@ function getSheet_() {
 
 /** Colours a status cell based on its value. */
 function colorStatus_(range, value) {
-  var c = STATUS_COLORS[value] || STATUS_COLORS['Confirmed'];
-  if (!value) value = 'Confirmed';
+  value = normalizeStatus_(value);
+  var c = STATUS_COLORS[value];
   range
     .setValue(value)
     .setBackground(c.bg)
     .setFontColor(c.fg)
     .setFontWeight('bold')
     .setHorizontalAlignment('center');
+}
+
+function normalizeStatus_(value) {
+  if (value === 'In Transit') return 'Shipped';
+  return STATUSES.indexOf(value) >= 0 ? value : 'Confirmed';
+}
+
+function rememberStatus_(row, status) {
+  PropertiesService.getDocumentProperties().setProperty('status_' + row, status);
 }
 
 /** Simple trigger: recolour the Status cell when you change it in the sheet. */
@@ -395,8 +411,6 @@ function listOrders_() {
   }
 }
 
-var STATUSES = ['Confirmed', 'In Transit', 'Delivered'];
-
 function applyStatusValidation_(sheet, row) {
   var rule = SpreadsheetApp.newDataValidation()
     .requireValueInList(STATUSES, true)
@@ -405,43 +419,129 @@ function applyStatusValidation_(sheet, row) {
   sheet.getRange(row, STATUS_COL).setDataValidation(rule);
 }
 
-function updateStatus_(params) {
+function updateStatus_(orderId, nextStatus) {
   try {
-    var orderId = String(params.orderId || '').trim();
-    var status = String(params.status || 'Confirmed').trim();
-    if (!orderId) {
-      return json_({ success: false, error: 'Order ID is required.' });
-    }
-    if (STATUSES.indexOf(status) === -1) {
-      status = 'Confirmed';
+    var id = String(orderId || '').trim();
+    var status = String(nextStatus || '').trim();
+    if (!id || STATUSES.indexOf(status) === -1) {
+      return json_({ success: false, error: 'Invalid order ID or status.' });
     }
 
     var sheet = getSheet_();
     var lastRow = sheet.getLastRow();
-    if (lastRow < 2) {
-      return json_({ success: false, error: 'No order found.' });
-    }
+    if (lastRow < 2) return json_({ success: false, error: 'Order not found.' });
 
-    var rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
-    var rowIndex = -1;
-    for (var i = 0; i < rows.length; i++) {
-      if (String(rows[i][1] || '') === orderId) {
-        rowIndex = i + 2;
-        break;
+    var ids = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
+    for (var i = 0; i < ids.length; i++) {
+      if (String(ids[i][0] || '').trim() !== id) continue;
+
+      var row = i + 2;
+      var range = sheet.getRange(row, STATUS_COL);
+      var previousStatus = String(range.getValue() || 'Confirmed');
+      if (previousStatus === status) {
+        colorStatus_(range, status);
+        return json_({ success: true, orderId: id, status: status, changed: false });
       }
+
+      colorStatus_(range, status);
+      rememberStatus_(row, status);
+      var customer = sheet.getRange(row, 1, 1, HEADERS.length).getValues()[0];
+      var mail = sendStatusMail_(customer, id, status);
+      return json_({
+        success: true,
+        orderId: id,
+        status: status,
+        changed: true,
+        mailSent: mail.sent,
+        mailError: mail.error
+      });
     }
-
-    if (rowIndex === -1) {
-      return json_({ success: false, error: 'Order not found.' });
-    }
-
-    var target = sheet.getRange(rowIndex, STATUS_COL);
-    colorStatus_(target, status);
-
-    return json_({ success: true, orderId: orderId, status: status });
+    return json_({ success: false, error: 'Order not found.' });
   } catch (err) {
     return json_({ success: false, error: String(err) });
   }
+}
+
+function sendStatusMail_(row, orderId, status) {
+  var result = { sent: false, error: '' };
+  var email = String(row[4] || '').trim();
+  if (!email) return result;
+
+  var name = String(row[2] || '').trim();
+  var subject = SHOP_NAME + ' - Order ' + orderId + ' ' + status;
+  var statusMessage = {
+    'Payment Completed': {
+      title: 'Payment received with thanks!',
+      body: 'We are delighted to confirm that your payment has been received. Our team is now carefully preparing your crackers for dispatch.',
+      closing: 'Your celebration is getting closer!'
+    },
+    'Shipped': {
+      title: 'Your order is on its way!',
+      body: 'Your crackers have been packed with care and handed over for delivery. They are now travelling safely to you.',
+      closing: 'We hope they bring plenty of light, laughter and wonderful moments to your celebration!'
+    },
+    'Delivered': {
+      title: 'Your order has arrived!',
+      body: 'We hope your crackers have reached you safely and add extra sparkle to your special moments. Thank you sincerely for choosing us.',
+      closing: 'It was a joy to be part of your celebration. We look forward to serving you again!'
+    }
+  }[status] || {
+    title: 'Your order has been confirmed!',
+    body: 'Your order is confirmed and our team will keep you updated as it moves through delivery.',
+    closing: 'Thank you for choosing ' + SHOP_NAME + '.'
+  };
+  var html =
+    '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#fffdf8;border:1px solid #e6dcc4">' +
+    '<div style="background:#7a1420;padding:18px 20px;text-align:center;border-bottom:3px solid #c9a24d">' +
+    '<span style="color:#c9a24d;font-size:20px;font-weight:bold;letter-spacing:2px">NAMBI CRACKERS</span></div>' +
+    '<div style="padding:22px 24px;color:#2a2222;font-size:14px;line-height:1.7">' +
+    '<p>Vanakkam ' + name + ',</p>' +
+    '<p style="color:#7a1420;font-size:18px;font-weight:bold">' + statusMessage.title + '</p>' +
+    '<p>Your order <b style="color:#7a1420">' + orderId + '</b> is now <b>' + status + '</b>.</p>' +
+    '<p>' + statusMessage.body + '</p>' +
+    '<p style="color:#7a1420;font-weight:bold">' + statusMessage.closing + '</p>' +
+    '</div></div>';
+  try {
+    var mailResult = { error: '' };
+    result.sent = send_(email, subject, html, [], mailResult);
+    result.error = mailResult.error;
+  } catch (err) {
+    result.error = String(err);
+  }
+  return result;
+}
+
+/** Run once from the Apps Script editor to enable email notifications for sheet edits. */
+function setupStatusEmailTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'handleStatusEdit') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger('handleStatusEdit')
+    .forSpreadsheet(SpreadsheetApp.getActive())
+    .onEdit()
+    .create();
+}
+
+function handleStatusEdit(e) {
+  try {
+    var range = e.range;
+    var sheet = range.getSheet();
+    if (sheet.getName() !== SHEET_NAME || range.getColumn() !== STATUS_COL || range.getRow() <= 1) return;
+
+    var status = String(range.getValue() || 'Confirmed').trim();
+    if (STATUSES.indexOf(status) === -1) {
+      colorStatus_(range, 'Confirmed');
+      return;
+    }
+    var row = sheet.getRange(range.getRow(), 1, 1, HEADERS.length).getValues()[0];
+    var previous = PropertiesService.getDocumentProperties().getProperty('status_' + range.getRow()) || 'Confirmed';
+    rememberStatus_(range.getRow(), status);
+    colorStatus_(range, status);
+    if (previous && previous !== status) sendStatusMail_(row, String(row[1] || ''), status);
+  } catch (ignore) {}
 }
 
 function json_(obj) {
