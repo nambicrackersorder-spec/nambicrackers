@@ -76,7 +76,7 @@ export function AdminAnalyticsTab({
   const statusCounts = useMemo(() => {
     return orders.reduce(
       (acc, o) => {
-        const s = o.status || "Confirmed";
+        const s = o.status || "Order Confirmed";
         acc[s] = (acc[s] || 0) + 1;
         return acc;
       },

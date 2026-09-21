@@ -50,18 +50,20 @@ type TrackResult = {
 };
 
 const STEPS = [
-  { key: "Confirmed", label: "Order Confirmed", icon: CheckCircle2 },
+  { key: "Order Confirmed", label: "Order Confirmed", icon: CheckCircle2 },
   { key: "Payment Completed", label: "Payment Completed", icon: Layers },
+  { key: "Packaging Finished", label: "Packaging Finished", icon: PackageCheck },
   { key: "Shipped", label: "Shipped / In Transit", icon: Truck },
   { key: "Delivered", label: "Delivered", icon: PackageCheck },
 ];
 
 function getStepIndex(status: string): number {
   const s = status.toLowerCase();
-  if (s.includes("deliver")) return 3;
-  if (s.includes("transit") || s.includes("dispatch") || s.includes("ship")) return 2;
-  if (s.includes("pack") || s.includes("payment")) return 1;
-  return 0; // Confirmed / default
+  if (s.includes("deliver")) return 4;
+  if (s.includes("transit") || s.includes("dispatch") || s.includes("ship")) return 3;
+  if (s.includes("pack") || s.includes("packaging")) return 2;
+  if (s.includes("payment")) return 1;
+  return 0;
 }
 
 function TrackPage() {
@@ -103,7 +105,7 @@ function TrackPage() {
         statusMap[key] ||
         (o.timestamp && statusMap[`${o.timestamp}-${o.name || ""}`]) ||
         o.status ||
-        "Confirmed";
+        "Order Confirmed";
       return {
         ...o,
         status: overriddenStatus,
@@ -156,7 +158,7 @@ function TrackPage() {
         <div className="mt-8 space-y-5">
           {(results ?? []).map((o) => {
             const isCancelled = (o.status || "").toLowerCase().includes("cancel");
-            const currentStep = getStepIndex(o.status || "Confirmed");
+            const currentStep = getStepIndex(o.status || "Order Confirmed");
 
             return (
               <article

@@ -36,7 +36,7 @@ var HEADERS = [
   "Status",
 ];
 
-var STATUSES = ["Confirmed", "Payment Completed", "Shipped", "Delivered", "Cancelled"];
+var STATUSES = ["Order Confirmed", "Payment Completed", "Packaging Finished", "Shipped", "Delivered", "Cancelled"];
 
 // Brand colours
 var C_MAROON = "#7a1420";
@@ -44,8 +44,9 @@ var C_GOLD = "#c9a24d";
 var C_CREAM = "#fffdf8";
 var C_CREAM_ALT = "#faf3e3";
 var STATUS_COLORS = {
-  Confirmed: { bg: "#dbeafe", fg: "#1d4ed8" },
+  "Order Confirmed": { bg: "#dbeafe", fg: "#1d4ed8" },
   "Payment Completed": { bg: "#e0e7ff", fg: "#4338ca" },
+  "Packaging Finished": { bg: "#e0e7ff", fg: "#4338ca" },
   Shipped: { bg: "#fef3c7", fg: "#92400e" },
   Delivered: { bg: "#dcfce7", fg: "#166534" },
   Cancelled: { bg: "#fee2e2", fg: "#991b1b" },
@@ -122,7 +123,7 @@ function handleRequest(e) {
       params.discountAmount || "",
       params.totalAmount || "",
       params.city || "",
-      "Confirmed",
+      "Order Confirmed",
     ]);
 
     applyStatusValidation_(sheet, row);
@@ -134,7 +135,7 @@ function handleRequest(e) {
       .setBorder(true, true, true, true, true, true, "#e6dcc4", SpreadsheetApp.BorderStyle.SOLID);
     sheet.getRange(row, 10).setWrap(true);
     sheet.setRowHeight(row, Math.max(21, items.split(String.fromCharCode(10)).length * 16));
-    colorStatus_(sheet.getRange(row, STATUS_COL), "Confirmed");
+    colorStatus_(sheet.getRange(row, STATUS_COL), "Order Confirmed");
 
     var mail = sendInvoiceMails_(params, orderId, items);
 
@@ -170,28 +171,36 @@ function uniqueOrderId_(sheet, requested) {
 }
 
 function normalizeStatus_(rawStatus) {
-  var value = String(rawStatus || "Confirmed").trim();
-  if (!value) value = "Confirmed";
+  var value = String(rawStatus || "Order Confirmed").trim();
+  if (!value) value = "Order Confirmed";
   var normalized = value;
-  if (value.toLowerCase() === "in transit" || value.toLowerCase() === "dispatch" || value.toLowerCase() === "shipping") {
+  var lower = value.toLowerCase();
+  if (lower === "confirmed" || lower === "new" || lower === "order confirmed") {
+    normalized = "Order Confirmed";
+  }
+  if (lower === "in transit" || lower === "dispatch" || lower === "shipping") {
     normalized = "Shipped";
   }
-  if (value.toLowerCase() === "payment pending" || value.toLowerCase() === "payment" || value.toLowerCase() === "paid") {
+  if (lower === "payment pending" || lower === "payment" || lower === "paid") {
     normalized = "Payment Completed";
   }
-  if (value.toLowerCase() === "cancelled" || value.toLowerCase() === "canceled") {
+  if (lower === "packaging finished" || lower === "packing finished" || lower === "packing" || lower === "package finished") {
+    normalized = "Packaging Finished";
+  }
+  if (lower === "cancelled" || lower === "canceled") {
     normalized = "Cancelled";
   }
   if (STATUSES.indexOf(normalized) === -1) {
-    return "Confirmed";
+    return "Order Confirmed";
   }
   return normalized;
 }
 
 function getCustomerStatusMessage_(status, orderId, customerName) {
   var messages = {
-    Confirmed: "Your order " + orderId + " has been confirmed and is being prepared for dispatch.",
-    "Payment Completed": "We have received the payment for order " + orderId + ". We will pack and ship it shortly.",
+    "Order Confirmed": "Your order " + orderId + " has been confirmed and is being prepared.",
+    "Payment Completed": "We have received the payment for order " + orderId + ". We are preparing your package for dispatch.",
+    "Packaging Finished": "Your order " + orderId + " has finished packaging and is ready to be shipped.",
     Shipped: "Your order " + orderId + " has been shipped and is on the way. Please keep your phone ready for delivery updates.",
     Delivered: "Your order " + orderId + " has been delivered. Thank you for shopping with Nambi Crackers.",
     Cancelled: "Your order " + orderId + " has been cancelled. Please contact us if you need any help.",
@@ -206,9 +215,9 @@ function sendStatusEmail_(sheet, row) {
     var email = String(sheet.getRange(row, 5).getValue() || "").trim();
     var orderId = String(sheet.getRange(row, 2).getValue() || "").trim();
     var customerName = String(sheet.getRange(row, 3).getValue() || "Customer").trim();
-    var status = normalizeStatus_(sheet.getRange(row, STATUS_COL).getValue() || "Confirmed");
+    var status = normalizeStatus_(sheet.getRange(row, STATUS_COL).getValue() || "Order Confirmed");
 
-    if (!email || !orderId || !status || status === "Confirmed" && !sheet.getRange(row, STATUS_COL).isBlank()) {
+    if (!email || !orderId || !status) {
       return false;
     }
 
@@ -221,10 +230,10 @@ function sendStatusEmail_(sheet, row) {
       '<div style="padding:22px 18px;color:#2a2222;line-height:1.7">' +
       '<p style="margin:0 0 12px">Hi <b>' + customerName + '</b>,</p>' +
       '<p style="margin:0 0 12px">Your order <b>' + orderId + '</b> is now marked as <b style="color:#7a1420">' + status + '</b>.</p>' +
-      '<p style="margin:0 0 12px">' + (status === "Confirmed" ? "We have received your request and are preparing it for confirmation." : status === "Payment Completed" ? "We have received your payment and are preparing the order." : status === "Shipped" ? "Your order is on the way and will reach you soon." : status === "Delivered" ? "Your order has been delivered. Thank you for shopping with us." : "Your order has been cancelled. Please contact us if you need help.") + '</p>' +
+      '<p style="margin:0 0 12px">' + (status === "Order Confirmed" ? "We have received your request and are preparing your order." : status === "Payment Completed" ? "We have received your payment and are preparing the order." : status === "Packaging Finished" ? "Your package is ready and will be handed over for shipment soon." : status === "Shipped" ? "Your order is on the way and will reach you soon." : status === "Delivered" ? "Your order has been delivered. Thank you for shopping with us." : "Your order has been cancelled. Please contact us if you need help.") + '</p>' +
       '<p style="margin:0;text-align:center;color:#7a1420;font-weight:bold">Thank You</p>' +
       '<p style="margin:4px 0 0;text-align:center;color:#7a1420;letter-spacing:1.2px;font-weight:bold">NAMBI CRACKERS</p>' +
-      '</div></div>';
+      '</div></div>;'
 
     GmailApp.sendEmail(email, subject, getCustomerStatusMessage_(status, orderId, customerName), {
       htmlBody: html,
@@ -239,7 +248,7 @@ function sendStatusEmail_(sheet, row) {
 function updateOrderStatusByRequest_(params) {
   try {
     var orderId = String(params.orderId || params.id || "").trim();
-    var status = normalizeStatus_(params.status || "Confirmed");
+    var status = normalizeStatus_(params.status || "Order Confirmed");
     var sheet = getSheet_();
 
     if (!orderId) {
@@ -254,7 +263,7 @@ function updateOrderStatusByRequest_(params) {
     var found = false;
     for (var r = 2; r <= lastRow; r++) {
       if (String(sheet.getRange(r, 2).getValue() || "") === orderId) {
-        var currentStatus = String(sheet.getRange(r, STATUS_COL).getValue() || "Confirmed");
+        var currentStatus = String(sheet.getRange(r, STATUS_COL).getValue() || "Order Confirmed");
         if (normalizeStatus_(currentStatus) !== status) {
           sheet.getRange(r, STATUS_COL).setValue(status);
           colorStatus_(sheet.getRange(r, STATUS_COL), status);
@@ -396,7 +405,7 @@ function trackOrders_(query) {
         items: String(r[9] || ""),
         totalQty: String(r[10] || ""),
         totalAmount: String(r[13] || ""),
-        status: String(r[15] || "Confirmed"),
+        status: String(r[15] || "Order Confirmed"),
       });
     }
     return json_({ success: true, orders: orders });
@@ -456,7 +465,7 @@ function getSheet_() {
   if (lastRow > 1) {
     var statusVals = sheet.getRange(2, STATUS_COL, lastRow - 1, 1).getValues();
     for (var i = 0; i < statusVals.length; i++) {
-      colorStatus_(sheet.getRange(i + 2, STATUS_COL), String(statusVals[i][0] || "Confirmed"));
+      colorStatus_(sheet.getRange(i + 2, STATUS_COL), String(statusVals[i][0] || "Order Confirmed"));
     }
   }
 
@@ -469,8 +478,8 @@ function getSheet_() {
 
 /** Colours a status cell based on its value. */
 function colorStatus_(range, value) {
-  var c = STATUS_COLORS[value] || STATUS_COLORS["Confirmed"];
-  if (!value) value = "Confirmed";
+  var c = STATUS_COLORS[value] || STATUS_COLORS["Order Confirmed"];
+  if (!value) value = "Order Confirmed";
   range
     .setValue(value)
     .setBackground(c.bg)
@@ -487,7 +496,7 @@ function onEdit(e) {
     if (sheet.getName() !== SHEET_NAME) return;
     if (range.getColumn() === STATUS_COL && range.getRow() > 1) {
       var oldValue = String(e.oldValue || "");
-      var newValue = normalizeStatus_(String(range.getValue() || "Confirmed"));
+      var newValue = normalizeStatus_(String(range.getValue() || "Order Confirmed"));
       range.setValue(newValue);
       colorStatus_(range, newValue);
 

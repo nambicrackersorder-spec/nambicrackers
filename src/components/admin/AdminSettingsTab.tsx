@@ -122,7 +122,7 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
       `"${o.pincode}"`,
       `"${o.totalQty}"`,
       `"${o.totalAmount}"`,
-      `"${o.status || "Confirmed"}"`,
+      `"${o.status || "Order Confirmed"}"`,
     ]);
 
     const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");

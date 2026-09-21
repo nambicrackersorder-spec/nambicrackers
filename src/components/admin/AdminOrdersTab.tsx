@@ -40,8 +40,9 @@ function waNumber(mobile: string) {
 }
 
 const STATUS_OPTIONS = [
-  "Confirmed",
+  "Order Confirmed",
   "Payment Completed",
+  "Packaging Finished",
   "Shipped",
   "Delivered",
   "Cancelled",
@@ -64,7 +65,7 @@ export function AdminOrdersTab({
   // Active vs Delivered counts
   const activeOrdersCount = useMemo(() => {
     return orders.filter((o) => {
-      const s = (o.status || "Confirmed").toLowerCase();
+      const s = (o.status || "Order Confirmed").toLowerCase();
       return !s.includes("deliver") && !s.includes("cancel");
     }).length;
   }, [orders]);
@@ -89,7 +90,7 @@ export function AdminOrdersTab({
         (o.state && o.state.toLowerCase().includes(q)) ||
         (o.items && o.items.toLowerCase().includes(q));
 
-      const status = (o.status || "Confirmed").toLowerCase();
+      const status = (o.status || "Order Confirmed").toLowerCase();
 
       let matchesStatus = true;
       if (statusFilter === "active") {
@@ -102,10 +103,10 @@ export function AdminOrdersTab({
         const target = statusFilter.toLowerCase();
         matchesStatus =
           status === target ||
-          (target.includes("payment") && status.includes("pack")) ||
-          (target.includes("pack") && status.includes("payment")) ||
-          (target.includes("ship") && (status.includes("dispatch") || status.includes("transit"))) ||
-          (target.includes("dispatch") && status.includes("ship"));
+          (target.includes("payment") && status.includes("payment")) ||
+          (target.includes("pack") && status.includes("pack")) ||
+          (target.includes("ship") && (status.includes("ship") || status.includes("dispatch") || status.includes("transit"))) ||
+          (target.includes("dispatch") && (status.includes("ship") || status.includes("dispatch") || status.includes("transit")));
       }
 
       return matchesSearch && matchesStatus;

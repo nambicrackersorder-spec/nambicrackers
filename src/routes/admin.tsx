@@ -95,16 +95,16 @@ function AdminPage() {
         (o.timestamp && statusMap[`${o.timestamp}-${o.name || ""}`]) ||
         statusMap[String(idx)] ||
         o.status ||
-        "Confirmed",
+        "Order Confirmed",
     };
   });
 
   const orders: OrderRecord[] = filterRealOrders(rawOrders);
 
-  // Active in-progress orders (Confirmed, Payment Completed, Shipped)
+  // Active in-progress orders (Order Confirmed, Payment Completed, Packaging Finished, Shipped)
   const activeLiveOrders = useMemo(() => {
     return orders.filter((o) => {
-      const s = (o.status || "Confirmed").toLowerCase();
+      const s = (o.status || "Order Confirmed").toLowerCase();
       return !s.includes("deliver") && !s.includes("cancel");
     });
   }, [orders]);

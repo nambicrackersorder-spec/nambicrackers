@@ -70,8 +70,9 @@ function waNumber(mobile: string) {
 }
 
 const STATUS_OPTIONS = [
-  "Confirmed",
+  "Order Confirmed",
   "Payment Completed",
+  "Packaging Finished",
   "Shipped",
   "Delivered",
   "Cancelled",
@@ -106,7 +107,7 @@ function OrdersDashboard() {
         (o.timestamp && statusMap[`${o.timestamp}-${o.name || ""}`]) ||
         statusMap[String(idx)] ||
         o.status ||
-        "Confirmed",
+        "Order Confirmed",
     };
   });
 
@@ -114,7 +115,7 @@ function OrdersDashboard() {
 
   const activeOrdersCount = useMemo(() => {
     return (orders ?? []).filter((o) => {
-      const s = (o.status || "Confirmed").toLowerCase();
+      const s = (o.status || "Order Confirmed").toLowerCase();
       return !s.includes("deliver") && !s.includes("cancel");
     }).length;
   }, [orders]);
@@ -128,7 +129,7 @@ function OrdersDashboard() {
 
   const displayedOrders = useMemo(() => {
     return (orders ?? []).filter((o) => {
-      const s = (o.status || "Confirmed").toLowerCase();
+      const s = (o.status || "Order Confirmed").toLowerCase();
       if (statusFilter === "active") return !s.includes("deliver") && !s.includes("cancel");
       if (statusFilter === "delivered") return s.includes("deliver");
       return true;
@@ -398,7 +399,7 @@ function OrdersDashboard() {
               ? `mailto:${o.email}?subject=${mailSubject}&body=${mailBody}`
               : null;
 
-            const status = o.status || "Confirmed";
+            const status = o.status || "Order Confirmed";
             const orderKey = o.orderId || `${o.timestamp}-${i}`;
 
             return (

@@ -94,13 +94,13 @@ export function AdminDashboardTab({
 
   // Status breakdown
   const liveOrders = orders.filter((o) => {
-    const s = (o.status || "Confirmed").toLowerCase();
+    const s = (o.status || "Order Confirmed").toLowerCase();
     return !s.includes("deliver") && !s.includes("cancel");
   });
 
   const pendingOrders = orders.filter((o) => {
-    const s = (o.status || "Confirmed").toLowerCase();
-    return s.includes("confirm") || s.includes("pending");
+    const s = (o.status || "Order Confirmed").toLowerCase();
+    return s.includes("order confirmed") || s.includes("confirm") || s.includes("pending");
   });
 
   const paymentCompletedOrders = orders.filter((o) => {
@@ -293,7 +293,7 @@ export function AdminDashboardTab({
               <div className="flex items-center justify-between p-2.5 rounded-lg bg-blue-50/80 border border-blue-100">
                 <div className="flex items-center gap-2.5">
                   <Clock className="h-4 w-4 text-blue-600" />
-                  <span className="text-xs font-semibold text-blue-900">Confirmed / New</span>
+                  <span className="text-xs font-semibold text-blue-900">Order Confirmed</span>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-200/80 text-blue-800">
                   {pendingOrders.length}
@@ -313,7 +313,7 @@ export function AdminDashboardTab({
               <div className="flex items-center justify-between p-2.5 rounded-lg bg-indigo-50/80 border border-indigo-100">
                 <div className="flex items-center gap-2.5">
                   <Layers className="h-4 w-4 text-indigo-600" />
-                  <span className="text-xs font-semibold text-indigo-900">Packing</span>
+                  <span className="text-xs font-semibold text-indigo-900">Packaging Finished</span>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-200/80 text-indigo-800">
                   {packingOrders.length}
@@ -323,7 +323,7 @@ export function AdminDashboardTab({
               <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-50/80 border border-amber-100">
                 <div className="flex items-center gap-2.5">
                   <Truck className="h-4 w-4 text-amber-600" />
-                  <span className="text-xs font-semibold text-amber-900">Dispatched / Transit</span>
+                  <span className="text-xs font-semibold text-amber-900">Shipped</span>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-200/80 text-amber-800">
                   {inTransitOrders.length}
@@ -442,7 +442,7 @@ export function AdminDashboardTab({
                     )}`
                   : null;
 
-                const status = o.status || "Confirmed";
+                const status = o.status || "Order Confirmed";
                 const isDelivered = status.toLowerCase().includes("deliver");
                 const isInTransit = status.toLowerCase().includes("transit") || status.toLowerCase().includes("dispatch");
                 const isPacking = status.toLowerCase().includes("pack");
