@@ -66,7 +66,6 @@ function AdminPage() {
     updateCategory,
     deleteCategory,
     reorderCategory,
-    resetDemoData,
   } = useCatalog();
 
   const { statusMap, setOrderStatus } = useOrderStatusMap();
@@ -210,14 +209,7 @@ function AdminPage() {
       )}
 
       {currentTab === "settings" && (
-        <AdminSettingsTab
-          orders={orders}
-          onResetDemoData={() => {
-            const res = resetDemoData(rawOrders);
-            refetch();
-            return res;
-          }}
-        />
+        <AdminSettingsTab orders={orders} />
       )}
     </AdminLayout>
   );

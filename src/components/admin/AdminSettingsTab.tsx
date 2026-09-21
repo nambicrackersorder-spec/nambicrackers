@@ -17,30 +17,16 @@ import {
   RefreshCw,
   ShieldCheck,
   AlertTriangle,
-  KeyRound,
-  Lock,
-  Eye,
-  EyeOff,
-  UserCheck,
-  Loader2,
 } from "lucide-react";
-import { SHOP, APPS_SCRIPT_URL, CLOUDINARY_CLOUD_NAME } from "@/config";
 import type { OrderRecord } from "./AdminDashboardTab";
 import { useCatalog, useSettings } from "@/lib/catalog-store";
-import { useAdminAuth } from "@/lib/admin-auth";
 
 interface AdminSettingsTabProps {
   orders: OrderRecord[];
-  onResetDemoData?: () => {
-    removedDemoProducts: number;
-    removedDemoCategories: number;
-    removedDemoStatuses: number;
-    removedDemoOrders?: number;
-  };
 }
 
-export function AdminSettingsTab({ orders, onResetDemoData }: AdminSettingsTabProps) {
-  const { products, categories, resetDemoData } = useCatalog();
+export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
+  const { products } = useCatalog();
   const { settings, updateSettings } = useSettings();
 
   const [shopName, setShopName] = useState(settings.name);
@@ -67,74 +53,6 @@ export function AdminSettingsTab({ orders, onResetDemoData }: AdminSettingsTabPr
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState("");
   const [isSaved, setIsSaved] = useState(false);
-
-  const { adminId, changeCredentials } = useAdminAuth();
-
-  // Change credentials state
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newAdminId, setNewAdminId] = useState(adminId || "admin@nambicrackers.com");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [showCurrentPass, setShowCurrentPass] = useState(false);
-  const [showNewPass, setShowNewPass] = useState(false);
-  const [showConfirmPass, setShowConfirmPass] = useState(false);
-  const [credSubmitting, setCredSubmitting] = useState(false);
-  const [credError, setCredError] = useState<string | null>(null);
-  const [credSuccess, setCredSuccess] = useState<string | null>(null);
-
-  // Sync adminId if updated externally
-  React.useEffect(() => {
-    if (adminId) {
-      setNewAdminId(adminId);
-    }
-  }, [adminId]);
-
-  const handleChangeCredentials = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCredError(null);
-    setCredSuccess(null);
-
-    if (!currentPassword) {
-      setCredError("Please enter your current password.");
-      return;
-    }
-    if (!newAdminId.trim()) {
-      setCredError("Please enter a valid new Admin ID / Email.");
-      return;
-    }
-    if (!newPassword) {
-      setCredError("Please enter your new password.");
-      return;
-    }
-    if (newPassword.length < 6) {
-      setCredError("New password must be at least 6 characters long.");
-      return;
-    }
-    if (newPassword !== confirmNewPassword) {
-      setCredError("New Password and Confirm New Password do not match.");
-      return;
-    }
-
-    setCredSubmitting(true);
-    try {
-      const res = await changeCredentials(currentPassword, newAdminId.trim(), newPassword);
-      if (res.success) {
-        setCredSuccess(
-          "Admin credentials updated successfully! New login credentials are now active and old credentials have been invalidated.",
-        );
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmNewPassword("");
-        setTimeout(() => setCredSuccess(null), 8000);
-      } else {
-        setCredError(res.error || "Failed to update credentials.");
-      }
-    } catch (err) {
-      setCredError("An unexpected error occurred while updating credentials.");
-    } finally {
-      setCredSubmitting(false);
-    }
-  };
 
   const handleTestConnection = async () => {
     setTestStatus("testing");
@@ -428,142 +346,6 @@ export function AdminSettingsTab({ orders, onResetDemoData }: AdminSettingsTabPr
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Change Admin Credentials Section */}
-        <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <div className="flex items-center gap-2">
-              <KeyRound className="h-5 w-5 text-primary" />
-              <h3 className="font-display font-bold text-base text-primary">
-                Change Admin Credentials
-              </h3>
-            </div>
-            <span className="text-[11px] px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold flex items-center gap-1">
-              <ShieldCheck className="h-3 w-3 text-amber-700" />
-              PBKDF2 Protected
-            </span>
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            Update your Admin ID/Email and secure password. Old credentials will be immediately invalidated and replaced with encrypted credentials.
-          </p>
-
-          {credSuccess && (
-            <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 flex items-start gap-2.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-              <span>{credSuccess}</span>
-            </div>
-          )}
-
-          {credError && (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3.5 text-xs font-semibold text-destructive flex items-start gap-2.5">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{credError}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                Current Password <span className="text-destructive">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showCurrentPass ? "text" : "password"}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password"
-                  className="w-full rounded-md border border-input bg-background pl-3 pr-9 py-2 text-sm outline-none focus:border-accent font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPass(!showCurrentPass)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showCurrentPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                New Admin ID / Email <span className="text-destructive">*</span>
-              </label>
-              <input
-                type="text"
-                value={newAdminId}
-                onChange={(e) => setNewAdminId(e.target.value)}
-                placeholder="e.g. admin@nambicrackers.com"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                New Password <span className="text-destructive">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showNewPass ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password (min 6 chars)"
-                  className="w-full rounded-md border border-input bg-background pl-3 pr-9 py-2 text-sm outline-none focus:border-accent font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPass(!showNewPass)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                Confirm New Password <span className="text-destructive">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPass ? "text" : "password"}
-                  value={confirmNewPassword}
-                  onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  placeholder="Re-enter new password"
-                  className="w-full rounded-md border border-input bg-background pl-3 pr-9 py-2 text-sm outline-none focus:border-accent font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPass(!showConfirmPass)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-2">
-            <button
-              type="button"
-              onClick={handleChangeCredentials}
-              disabled={credSubmitting}
-              className="px-4 py-2 text-xs font-bold rounded-lg border border-gold/40 bg-amber-500 hover:bg-amber-600 text-ink flex items-center gap-1.5 shadow transition-colors disabled:opacity-70"
-            >
-              {credSubmitting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Updating Credentials...</span>
-                </>
-              ) : (
-                <>
-                  <KeyRound className="h-3.5 w-3.5" />
-                  <span>Update Admin Credentials</span>
-                </>
-              )}
-            </button>
           </div>
         </div>
 

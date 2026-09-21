@@ -15,16 +15,15 @@ export interface AdminSession {
   expiresAt: number;
 }
 
-// Initial Sample Admin Credentials
+// Fixed Admin Credentials
 // Admin ID: admin@nambicrackers.com
-// Initial Password: Admin@12345 (Cryptographically hashed with PBKDF2 100,000 iterations)
+// Password: Nambi@2026 (PBKDF2 hashed with 100,000 iterations)
 const INITIAL_SALT = "8fd60b02ac1a15493d6ccbe9749bde7a";
-const INITIAL_HASH = "ddbe3d325b99415659239829336a7c06a9f5ce23e1e4d518ebe0ee121e8fdf68";
+const INITIAL_HASH = "14b969d19eb6298fcd940586608bc365d59da3a181b9e33907431579e29f896d";
 const INITIAL_ADMIN_ID = "admin@nambicrackers.com";
 const PBKDF2_ITERATIONS = 100000;
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-const STORAGE_KEY_AUTH = "nambi_admin_auth_v2";
 const STORAGE_KEY_SESSION = "nambi_admin_session_v2";
 
 /* =========================================================================
@@ -95,53 +94,12 @@ export async function hashPassword(
    ========================================================================= */
 
 export function getStoredAuth(): StoredAdminAuth {
-  if (typeof window === "undefined") {
-    return {
-      adminId: INITIAL_ADMIN_ID,
-      salt: INITIAL_SALT,
-      hash: INITIAL_HASH,
-      iterations: PBKDF2_ITERATIONS,
-    };
-  }
-
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_AUTH);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (
-        parsed &&
-        typeof parsed.adminId === "string" &&
-        typeof parsed.salt === "string" &&
-        typeof parsed.hash === "string"
-      ) {
-        return {
-          adminId: parsed.adminId.trim().toLowerCase(),
-          salt: parsed.salt,
-          hash: parsed.hash,
-          iterations: Number(parsed.iterations) || PBKDF2_ITERATIONS,
-          updatedAt: parsed.updatedAt,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn("Could not parse saved admin auth, fallback to initial setup", err);
-  }
-
   return {
     adminId: INITIAL_ADMIN_ID,
     salt: INITIAL_SALT,
     hash: INITIAL_HASH,
     iterations: PBKDF2_ITERATIONS,
   };
-}
-
-export function saveStoredAuth(auth: StoredAdminAuth): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(auth));
-  } catch (err) {
-    console.error("Failed to save admin auth to localStorage", err);
-  }
 }
 
 /* =========================================================================
@@ -256,51 +214,6 @@ export async function loginAdmin(
   }
 }
 
-export async function updateAdminCredentials(
-  currentPasswordInput: string,
-  newAdminIdInput: string,
-  newPasswordInput: string,
-): Promise<{ success: boolean; error?: string }> {
-  const currentPassword = currentPasswordInput || "";
-  const newAdminId = (newAdminIdInput || "").trim().toLowerCase();
-  const newPassword = newPasswordInput || "";
-
-  if (!currentPassword) {
-    return { success: false, error: "Please provide your current password." };
-  }
-  if (!newAdminId) {
-    return { success: false, error: "New Admin ID / Email cannot be empty." };
-  }
-  if (newPassword.length < 6) {
-    return { success: false, error: "New password must be at least 6 characters long." };
-  }
-
-  const stored = getStoredAuth();
-  const currentHash = await hashPassword(currentPassword, stored.salt, stored.iterations);
-
-  if (currentHash !== stored.hash) {
-    return { success: false, error: "Current password is incorrect. Please try again." };
-  }
-
-  // Generate new cryptographic salt and hash
-  const newSalt = generateRandomHex(16);
-  const newHash = await hashPassword(newPassword, newSalt, PBKDF2_ITERATIONS);
-
-  const updatedAuth: StoredAdminAuth = {
-    adminId: newAdminId,
-    salt: newSalt,
-    hash: newHash,
-    iterations: PBKDF2_ITERATIONS,
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveStoredAuth(updatedAuth);
-  // Refresh active session with the new Admin ID
-  setSession(newAdminId);
-
-  return { success: true };
-}
-
 /* =========================================================================
    React Hook: useAdminAuth
    ========================================================================= */
@@ -342,25 +255,12 @@ export function useAdminAuth() {
     setSessionState(null);
   }, []);
 
-  const changeCredentials = useCallback(
-    async (currentPass: string, newId: string, newPass: string) => {
-      const res = await updateAdminCredentials(currentPass, newId, newPass);
-      if (res.success) {
-        setSessionState(getActiveSession());
-        setCurrentAuthState(getStoredAuth());
-      }
-      return res;
-    },
-    [],
-  );
-
   return {
     isAuthenticated: Boolean(session && session.expiresAt > Date.now()),
     adminId: session?.adminId || currentAuth.adminId,
     isInitializing,
     login,
     logout,
-    changeCredentials,
     activeSession: session,
   };
 }
