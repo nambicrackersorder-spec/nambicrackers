@@ -1,0 +1,324 @@
+@import "tailwindcss";
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-ink: var(--ink);
+  --font-display: "Cinzel", Georgia, serif;
+  --font-sans: "Mukta", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.985 0.008 85);
+  --foreground: oklch(0.22 0.02 40);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 40);
+  --primary: oklch(0.36 0.15 20);
+  --primary-foreground: oklch(0.97 0.02 85);
+  --secondary: oklch(0.95 0.02 85);
+  --secondary-foreground: oklch(0.3 0.05 30);
+  --muted: oklch(0.955 0.012 80);
+  --muted-foreground: oklch(0.5 0.03 50);
+  --accent: oklch(0.72 0.14 75);
+  --accent-foreground: oklch(0.2 0.03 40);
+  --destructive: oklch(0.55 0.22 27);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.9 0.02 70);
+  --input: oklch(0.9 0.02 70);
+  --ring: oklch(0.72 0.14 75);
+  --gold: oklch(0.78 0.13 82);
+  --gold-soft: oklch(0.9 0.07 85);
+  --ink: oklch(0.16 0.02 40);
+  --grad-royal: linear-gradient(
+    100deg,
+    oklch(0.3 0.13 22) 0%,
+    oklch(0.42 0.17 28) 55%,
+    oklch(0.32 0.13 20) 100%
+  );
+  --grad-gold: linear-gradient(
+    100deg,
+    oklch(0.68 0.12 74) 0%,
+    oklch(0.88 0.13 88) 45%,
+    oklch(0.7 0.13 70) 100%
+  );
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+  }
+}
+
+@utility surface-royal {
+  background-image: var(--grad-royal);
+  color: var(--color-primary-foreground);
+}
+
+@utility text-gold-grad {
+  background-image: var(--grad-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility btn-gold {
+  background-image: var(--grad-gold);
+  color: var(--color-ink);
+  font-weight: 700;
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px -8px oklch(0.6 0.13 75 / 0.8);
+  transition: filter 0.15s ease;
+}
+@utility btn-gold-hover {
+  filter: brightness(1.06);
+}
+
+@utility cat-bar {
+  background-image: var(--grad-royal);
+  color: var(--color-primary-foreground);
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@keyframes float-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@utility float-bob {
+  animation: float-bob 2.6s ease-in-out infinite;
+}
+
+@utility float-bob-delay {
+  animation: float-bob 2.6s ease-in-out infinite;
+  animation-delay: 0.6s;
+}
+
+@keyframes cart-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.78 0.13 82 / 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px oklch(0.78 0.13 82 / 0);
+  }
+}
+
+@utility cart-pulse {
+  animation: cart-pulse 1.8s ease-in-out infinite;
+}
+
+/* Gold cart button with a light-sheen sweep (overlay span keeps badge/ring visible) */
+.cart-shine {
+  background-image: var(--grad-gold);
+}
+
+.cart-sheen-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cart-sheen-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, oklch(1 0 0 / 0.7) 50%, transparent 70%);
+  transform: translateX(-130%);
+  animation: cart-sheen 2.4s ease-in-out infinite;
+}
+
+@keyframes cart-sheen {
+  55%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+/* Cracker (rocket) loading animation */
+@keyframes rocket-jitter {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  25% {
+    transform: translateY(-3px) rotate(3deg);
+  }
+  50% {
+    transform: translateY(-1px) rotate(-2deg);
+  }
+  75% {
+    transform: translateY(-4px) rotate(2deg);
+  }
+}
+
+.cracker-rocket {
+  animation: rocket-jitter 0.55s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* Ground chakra (spinning wheel) loader */
+@keyframes chakra-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.chakra-wheel {
+  animation: chakra-spin 1.4s linear infinite;
+  transform-origin: center;
+  filter: drop-shadow(0 0 6px oklch(0.85 0.15 90 / 0.55));
+}
+
+.chakra-glow {
+  position: absolute;
+  inset: 8px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, oklch(0.92 0.12 90 / 0.5), transparent 70%);
+  animation: fuse-glow 0.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes chakra-spark-fly {
+  0% {
+    transform: rotate(var(--sa, 0deg)) translateX(20px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--sa, 0deg)) translateX(42px) scale(0.2);
+    opacity: 0;
+  }
+}
+
+.chakra-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 9999px;
+  background: var(--color-gold);
+  animation: chakra-spark-fly 0.7s ease-out infinite;
+}
+
+@keyframes spark-pop {
+  0% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--sx, 0px)), var(--sy, 24px)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+.cracker-spark {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-gold);
+  animation: spark-pop 0.85s ease-out infinite;
+}
+
+@keyframes fuse-glow {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+.cracker-fuse {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, oklch(0.95 0.1 90), var(--color-gold) 60%, transparent 75%);
+  transform: translateX(-50%);
+  animation: fuse-glow 0.4s ease-in-out infinite;
+}
+
+@keyframes cracker-text-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.cracker-text {
+  animation: cracker-text-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes slide-in-right {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@utility slide-in-right {
+  animation: slide-in-right 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
