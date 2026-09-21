@@ -15,6 +15,7 @@ import {
   Sparkles,
   Save,
   RefreshCw,
+  ShieldCheck,
   AlertTriangle,
   KeyRound,
   Lock,
