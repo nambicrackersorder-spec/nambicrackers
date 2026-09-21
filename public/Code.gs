@@ -45,11 +45,12 @@ var C_CREAM = '#fffdf8';
 var C_CREAM_ALT = '#faf3e3';
 var STATUS_COLORS = {
   'Confirmed': { bg: '#fff3cd', fg: '#7a5c00' },
+  'Payment Completed': { bg: '#dcfce7', fg: '#166534' },
   'Packaging Finished': { bg: '#e0e7ff', fg: '#3730a3' },
   'Shipped': { bg: '#dbeafe', fg: '#1e40af' },
   'Delivered': { bg: '#dcfce7', fg: '#166534' }
 };
-var STATUSES = ['Confirmed', 'Packaging Finished', 'Shipped', 'Delivered'];
+var STATUSES = ['Confirmed', 'Payment Completed', 'Packaging Finished', 'Shipped', 'Delivered'];
 
 
 function doGet(e) {
@@ -360,7 +361,6 @@ function colorStatus_(range, value) {
 
 function normalizeStatus_(value) {
   if (value === 'In Transit') return 'Shipped';
-  if (value === 'Payment Completed') return 'Packaging Finished';
   return STATUSES.indexOf(value) >= 0 ? value : 'Confirmed';
 }
 
@@ -471,6 +471,11 @@ function sendStatusMail_(row, orderId, status) {
   var name = String(row[2] || '').trim();
   var subject = SHOP_NAME + ' - Order ' + orderId + ' ' + status;
   var statusMessage = {
+    'Payment Completed': {
+      title: 'Your payment is complete!',
+      body: 'We have received your payment successfully and your order is now moving into our preparation queue. Our team is getting everything ready with care.',
+      closing: 'Thank you for completing this step with us. Your celebration is getting closer!'
+    },
     'Packaging Finished': {
       title: 'Your order is being lovingly packed!',
       body: 'We have finished packing your crackers with care and devotion, making sure every box is ready for your celebration. Soon it will be on its way to you.',

@@ -41,6 +41,7 @@ type TrackResult = {
 
 const STEPS = [
   { key: "Confirmed", label: "Order Confirmed", icon: CheckCircle2 },
+  { key: "Payment Completed", label: "Payment Completed", icon: CreditCard },
   { key: "Packaging Finished", label: "Packaging Finished", icon: CreditCard },
   { key: "Shipped", label: "Shipped", icon: Truck },
   { key: "Delivered", label: "Delivered", icon: PackageCheck },
@@ -48,6 +49,7 @@ const STEPS = [
 
 const STATUS_STYLES: Record<string, string> = {
   Confirmed: "bg-amber-100 text-amber-800",
+  "Payment Completed": "bg-green-100 text-green-800",
   "Packaging Finished": "bg-indigo-100 text-indigo-800",
   Shipped: "bg-blue-100 text-blue-800",
   Delivered: "bg-emerald-100 text-emerald-800",
