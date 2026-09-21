@@ -39,12 +39,12 @@ type Order = {
   status?: string;
 };
 
-const STATUSES = ["Confirmed", "Payment Completed", "Shipped", "Delivered"] as const;
+const STATUSES = ["Confirmed", "Packaging Finished", "Shipped", "Delivered"] as const;
 type OrderStatus = (typeof STATUSES)[number];
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
   Confirmed: "border-amber-200 bg-amber-50 text-amber-800",
-  "Payment Completed": "border-indigo-200 bg-indigo-50 text-indigo-800",
+  "Packaging Finished": "border-indigo-200 bg-indigo-50 text-indigo-800",
   Shipped: "border-blue-200 bg-blue-50 text-blue-800",
   Delivered: "border-emerald-200 bg-emerald-50 text-emerald-800",
 };
