@@ -15,8 +15,6 @@ import {
   Sparkles,
   Save,
   RefreshCw,
-  RotateCcw,
-  ShieldCheck,
   AlertTriangle,
   KeyRound,
   Lock,
@@ -89,10 +87,6 @@ export function AdminSettingsTab({ orders, onResetDemoData }: AdminSettingsTabPr
       setNewAdminId(adminId);
     }
   }, [adminId]);
-
-  // Reset demo data modal state
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
 
   const handleChangeCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,17 +172,6 @@ export function AdminSettingsTab({ orders, onResetDemoData }: AdminSettingsTabPr
     setTimeout(() => setIsSaved(false), 3000);
   };
 
-  const handleConfirmResetDemo = () => {
-    const handler = onResetDemoData || resetDemoData;
-    const result = handler();
-    setIsResetModalOpen(false);
-    const orderText = result.removedDemoOrders ? `, ${result.removedDemoOrders} demo orders` : "";
-    setResetSuccessMessage(
-      `Admin demo data reset successfully! Cleaned ${result.removedDemoProducts} demo products, ${result.removedDemoCategories} demo categories${orderText}, and refreshed live calculations. Real products, categories, and customer orders remain 100% safe.`,
-    );
-    setTimeout(() => setResetSuccessMessage(null), 6000);
-  };
-
   const exportOrdersCSV = () => {
     if (orders.length === 0) {
       alert("No orders to export.");
@@ -267,13 +250,6 @@ export function AdminSettingsTab({ orders, onResetDemoData }: AdminSettingsTabPr
         <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
           <span>Settings saved and synchronized live to the Customer Website!</span>
-        </div>
-      )}
-
-      {resetSuccessMessage && (
-        <div className="rounded-xl border border-emerald-400 bg-emerald-50 p-4 text-xs font-semibold text-emerald-900 flex items-start gap-2.5">
-          <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-          <span>{resetSuccessMessage}</span>
         </div>
       )}
 
@@ -590,39 +566,6 @@ export function AdminSettingsTab({ orders, onResetDemoData }: AdminSettingsTabPr
           </div>
         </div>
 
-        {/* Admin Demo Data Reset Section */}
-        <div className="rounded-xl border border-amber-300 bg-amber-50/40 p-4 sm:p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-amber-200">
-            <div className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-amber-700" />
-              <h3 className="font-display font-bold text-base text-amber-900">
-                Admin Demo Data & Testing Controls
-              </h3>
-            </div>
-            <span className="text-[11px] px-2 py-0.5 rounded bg-amber-200 text-amber-900 font-bold">
-              Protected Catalog Mode
-            </span>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1 text-xs text-amber-950/90 max-w-xl">
-              <p className="font-semibold text-foreground">Reset Admin Demo Data</p>
-              <p className="text-muted-foreground">
-                Cleans temporary test/demo data, resets demo statistics, and refreshes live calculations. Real products, real categories, and real customer orders are strictly protected and will never be deleted.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsResetModalOpen(true)}
-              className="px-4 py-2.5 rounded-lg border border-amber-400 bg-amber-500 hover:bg-amber-600 text-ink font-bold text-xs flex items-center justify-center gap-2 shrink-0 shadow-sm transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>Reset Admin Demo Data</span>
-            </button>
-          </div>
-        </div>
-
         {/* Data Backup & Export */}
         <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-border">
@@ -675,60 +618,6 @@ export function AdminSettingsTab({ orders, onResetDemoData }: AdminSettingsTabPr
         </div>
       </form>
 
-      {/* Reset Admin Demo Data Confirmation Modal */}
-      {isResetModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4"
-          onClick={() => setIsResetModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-gold/60 bg-card p-5 sm:p-6 shadow-2xl space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
-                <RotateCcw className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-display font-bold text-base sm:text-lg text-primary">
-                  Reset Admin Demo Data?
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                  This will remove only Admin demo/test data. Existing products, categories, customer data, real orders, cart, checkout, and payment data will not be affected.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-lg bg-secondary/80 border border-border p-3 text-xs text-foreground/80 space-y-1">
-              <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-                <ShieldCheck className="h-4 w-4" />
-                <span>Protected: Real products & categories preserved</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-                <ShieldCheck className="h-4 w-4" />
-                <span>Protected: Real customer orders preserved</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setIsResetModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmResetDemo}
-                className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow"
-              >
-                Yes, Reset Demo Data
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
