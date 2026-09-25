@@ -53,6 +53,9 @@ var STATUS_COLORS = {
 };
 
 function doGet(e) {
+  if (e && e.parameter && e.parameter.action === "catalog") {
+    return getCatalog_();
+  }
   if (e && e.parameter && e.parameter.action === "list") {
     return listOrders_();
   }
@@ -66,6 +69,9 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  if (e && e.parameter && e.parameter.action === "saveCatalog") {
+    return saveCatalog_(e.parameter.catalog || "");
+  }
   if (e && e.parameter && e.parameter.action === "updateStatus") {
     return updateOrderStatusByRequest_(e.parameter || {});
   }
@@ -78,6 +84,54 @@ function doPost(e) {
     } catch (ignore) {}
   }
   return handleRequest(e);
+}
+
+var CATALOG_CHUNK_SIZE = 8000;
+
+function getCatalog_() {
+  try {
+    var properties = PropertiesService.getScriptProperties();
+    var count = Number(properties.getProperty("CATALOG_CHUNK_COUNT") || 0);
+    if (!count) return json_({ success: true, categories: [] });
+
+    var catalog = "";
+    for (var i = 0; i < count; i++) {
+      catalog += properties.getProperty("CATALOG_CHUNK_" + i) || "";
+    }
+    var parsed = JSON.parse(catalog);
+    return json_({ success: true, categories: parsed.categories || [] });
+  } catch (err) {
+    return json_({ success: false, error: String(err), categories: [] });
+  }
+}
+
+function saveCatalog_(rawCatalog) {
+  try {
+    var parsed = JSON.parse(String(rawCatalog || "{}"));
+    if (!parsed || !Array.isArray(parsed.categories)) {
+      return json_({ success: false, error: "Invalid catalog" });
+    }
+
+    var serialized = JSON.stringify({ categories: parsed.categories });
+    var properties = PropertiesService.getScriptProperties();
+    var previousCount = Number(properties.getProperty("CATALOG_CHUNK_COUNT") || 0);
+    var nextCount = Math.ceil(serialized.length / CATALOG_CHUNK_SIZE);
+    var updates = { CATALOG_CHUNK_COUNT: String(nextCount) };
+
+    for (var i = 0; i < nextCount; i++) {
+      updates["CATALOG_CHUNK_" + i] = serialized.slice(
+        i * CATALOG_CHUNK_SIZE,
+        (i + 1) * CATALOG_CHUNK_SIZE,
+      );
+    }
+    for (var oldIndex = nextCount; oldIndex < previousCount; oldIndex++) {
+      properties.deleteProperty("CATALOG_CHUNK_" + oldIndex);
+    }
+    properties.setProperties(updates);
+    return json_({ success: true });
+  } catch (err) {
+    return json_({ success: false, error: String(err) });
+  }
 }
 
 function handleRequest(e) {

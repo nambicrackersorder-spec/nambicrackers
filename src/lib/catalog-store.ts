@@ -61,6 +61,7 @@ interface CatalogState {
 let cachedCatalog: CatalogState | null = null;
 let cachedOrderStatus: Record<string, string> | null = null;
 let cachedSettings: ShopSettings | null = null;
+let remoteCatalogSyncStarted = false;
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -239,7 +240,47 @@ function saveCatalogToStorage(state: CatalogState) {
       console.error("Failed to save catalog to localStorage", err);
     }
   }
+  void saveCatalogToServer(state);
   notifyListeners();
+}
+
+function getCatalogSyncUrl() {
+  const url = getSettings().scriptUrl || DEFAULT_APPS_SCRIPT_URL;
+  return url ? `${url}${url.includes("?") ? "&" : "?"}` : "";
+}
+
+async function saveCatalogToServer(state: CatalogState) {
+  const url = getCatalogSyncUrl();
+  if (!url || typeof window === "undefined") return;
+
+  try {
+    const body = new URLSearchParams({
+      action: "saveCatalog",
+      catalog: JSON.stringify({ categories: state.categories }),
+    });
+    await fetch(url, { method: "POST", body });
+  } catch (err) {
+    console.warn("Could not sync catalog to Apps Script", err);
+  }
+}
+
+async function loadCatalogFromServer() {
+  const url = getCatalogSyncUrl();
+  if (!url || typeof window === "undefined") return;
+
+  try {
+    const response = await fetch(`${url}action=catalog`);
+    const data = await response.json();
+    if (!data.success || !Array.isArray(data.categories) || data.categories.length === 0) return;
+
+    const categories = data.categories as Category[];
+    const state = { categories, products: categories.flatMap((category) => category.products) };
+    cachedCatalog = state;
+    localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify({ categories }));
+    window.dispatchEvent(new Event("nambi_catalog_updated"));
+  } catch (err) {
+    console.warn("Could not load catalog from Apps Script, using local catalog", err);
+  }
 }
 
 function getCatalogState(): CatalogState {
@@ -767,6 +808,10 @@ export function useCatalog() {
     // Sync initial state on mount (client-side)
     setState(getCatalogState());
     setCurrentSettings(getSettings());
+    if (!remoteCatalogSyncStarted) {
+      remoteCatalogSyncStarted = true;
+      void loadCatalogFromServer();
+    }
     return subscribe(() => {
       setState({ ...getCatalogState() });
       setCurrentSettings(getSettings());

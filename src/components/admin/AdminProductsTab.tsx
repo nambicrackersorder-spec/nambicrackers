@@ -68,6 +68,7 @@ export function AdminProductsTab({
     initialCategories[0]?.name || "One Sound Crackers",
   );
   const [formRate, setFormRate] = useState<number>(100);
+  const [formRateInput, setFormRateInput] = useState("100");
   const [formPrice, setFormPrice] = useState<number>(Math.round(100 * discountFactor));
   const [formUnit, setFormUnit] = useState("1 Pkt");
   const [formImage, setFormImage] = useState("");
@@ -85,6 +86,7 @@ export function AdminProductsTab({
     setFormTamil("");
     setFormCategory(initialCategories[0]?.name || "One Sound Crackers");
     setFormRate(100);
+    setFormRateInput("100");
     setFormPrice(Math.round(100 * discountFactor));
     setFormUnit("1 Pkt");
     setFormImage("");
@@ -120,6 +122,7 @@ export function AdminProductsTab({
     setFormTamil(product.tamil);
     setFormCategory(catName);
     setFormRate(product.rate);
+    setFormRateInput(String(product.rate));
     setFormPrice(product.price);
     setFormUnit(product.unit);
     setFormImage(existingImg);
@@ -201,6 +204,14 @@ export function AdminProductsTab({
     setFormRate(rate);
     // Auto-compute discount offer price using dynamic settings
     setFormPrice(Math.round(rate * discountFactor));
+  };
+
+  const handleRateInputChange = (value: string) => {
+    setFormRateInput(value);
+    if (value === "") return;
+
+    const rate = Number(value);
+    if (Number.isFinite(rate)) handleRateChange(rate);
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -678,11 +689,19 @@ export function AdminProductsTab({
                     Original Rate (MRP) ₹
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     min={1}
                     required
-                    value={formRate}
-                    onChange={(e) => handleRateChange(Number(e.target.value))}
+                    value={formRateInput}
+                    onChange={(e) => handleRateInputChange(e.target.value.replace(/[^0-9]/g, ""))}
+                    onBlur={() => {
+                      if (!formRateInput || Number(formRateInput) < 1) {
+                        setFormRate(1);
+                        setFormRateInput("1");
+                        setFormPrice(Math.round(discountFactor));
+                      }
+                    }}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold outline-none focus:border-accent"
                   />
                   <span className="text-[10px] text-muted-foreground mt-0.5 block">
