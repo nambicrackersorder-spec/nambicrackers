@@ -21,13 +21,13 @@ import { useCatalog, type Category, type Product } from "@/lib/catalog-store";
 
 interface AdminCategoriesTabProps {
   categories: Category[];
-  onAddCategory: (categoryName: string) => void;
+  onAddCategory: (categoryName: string) => Promise<{ success: boolean; error?: string }> | void;
   onUpdateCategory?: (
     oldName: string,
     updated: { name?: string; active?: boolean; hideImages?: boolean },
-  ) => void;
-  onDeleteCategory?: (categoryName: string) => { success: boolean; error?: string };
-  onReorderCategory?: (categoryName: string, direction: "up" | "down") => void;
+  ) => Promise<{ success: boolean; error?: string }> | void;
+  onDeleteCategory?: (categoryName: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
+  onReorderCategory?: (categoryName: string, direction: "up" | "down") => Promise<{ success: boolean; error?: string }> | void;
   onSelectCategoryFilter?: (categoryName: string) => void;
 }
 
@@ -49,6 +49,9 @@ export function AdminCategoriesTab({
   const [editActive, setEditActive] = useState(true);
   const [editHideImages, setEditHideImages] = useState(false);
 
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const { reorderProduct } = useCatalog();
 
   // Warning modal for blocked category deletion
@@ -58,12 +61,24 @@ export function AdminCategoriesTab({
     setExpanded((prev) => ({ ...prev, [name]: !prev[name] }));
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
-    onAddCategory(newCatName.trim());
-    setNewCatName("");
-    setIsAddModalOpen(false);
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const res = await onAddCategory(newCatName.trim());
+      if (res && res.success === false) {
+        setSaveError(res.error || "Failed to create category on server.");
+        return;
+      }
+      setNewCatName("");
+      setIsAddModalOpen(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleOpenEdit = (cat: Category) => {
@@ -71,22 +86,35 @@ export function AdminCategoriesTab({
     setEditName(cat.name);
     setEditActive(cat.active !== false);
     setEditHideImages(!!cat.hideImages);
+    setSaveError(null);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCategory || !editName.trim()) return;
     if (onUpdateCategory) {
-      onUpdateCategory(editingCategory.name, {
-        name: editName.trim(),
-        active: editActive,
-        hideImages: editHideImages,
-      });
+      setIsSaving(true);
+      setSaveError(null);
+      try {
+        const res = await onUpdateCategory(editingCategory.name, {
+          name: editName.trim(),
+          active: editActive,
+          hideImages: editHideImages,
+        });
+        if (res && res.success === false) {
+          setSaveError(res.error || "Failed to update category on server.");
+          return;
+        }
+        setEditingCategory(null);
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setIsSaving(false);
+      }
     }
-    setEditingCategory(null);
   };
 
-  const handleDelete = (cat: Category) => {
+  const handleDelete = async (cat: Category) => {
     if (cat.products.length > 0) {
       setDeleteWarning(
         `This category contains ${cat.products.length} products. Please move or update those products before deleting the category.`,
@@ -96,8 +124,8 @@ export function AdminCategoriesTab({
 
     if (window.confirm(`Are you sure you want to remove the category "${cat.name}"?`)) {
       if (onDeleteCategory) {
-        const res = onDeleteCategory(cat.name);
-        if (!res.success && res.error) {
+        const res = await onDeleteCategory(cat.name);
+        if (res && !res.success && res.error) {
           setDeleteWarning(res.error);
         }
       }
@@ -464,19 +492,32 @@ export function AdminCategoriesTab({
                 </label>
               </div>
 
+              {saveError && (
+                <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs font-semibold text-red-800 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span>{saveError}</span>
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
                 <button
                   type="button"
-                  onClick={() => setEditingCategory(null)}
-                  className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setEditingCategory(null);
+                    setSaveError(null);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow"
+                  disabled={isSaving}
+                  className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  Save Changes
+                  {isSaving && <Sparkles className="h-3.5 w-3.5 animate-spin" />}
+                  <span>{isSaving ? "Saving to Server..." : "Save Changes"}</span>
                 </button>
               </div>
             </form>
@@ -488,7 +529,10 @@ export function AdminCategoriesTab({
       {isAddModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4"
-          onClick={() => setIsAddModalOpen(false)}
+          onClick={() => {
+            setIsAddModalOpen(false);
+            setSaveError(null);
+          }}
         >
           <div
             className="w-full max-w-md rounded-2xl border border-gold/60 bg-card p-5 sm:p-6 shadow-2xl space-y-4"
@@ -501,7 +545,10 @@ export function AdminCategoriesTab({
               </div>
               <button
                 type="button"
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setSaveError(null);
+                }}
                 className="rounded p-1 text-muted-foreground hover:bg-muted"
               >
                 <X className="h-5 w-5" />
@@ -523,19 +570,32 @@ export function AdminCategoriesTab({
                 />
               </div>
 
+              {saveError && (
+                <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs font-semibold text-red-800 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span>{saveError}</span>
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setSaveError(null);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow"
+                  disabled={isSaving}
+                  className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  Create Category
+                  {isSaving && <Sparkles className="h-3.5 w-3.5 animate-spin" />}
+                  <span>{isSaving ? "Saving to Server..." : "Create Category"}</span>
                 </button>
               </div>
             </form>

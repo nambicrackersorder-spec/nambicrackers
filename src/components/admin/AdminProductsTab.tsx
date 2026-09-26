@@ -28,10 +28,10 @@ interface AdminProductsTabProps {
   products: Product[];
   categories: Category[];
   initialCategoryFilter?: string;
-  onAddProduct: (product: Product, categoryName: string) => void;
-  onUpdateProduct: (product: Product, categoryName: string) => void;
-  onDeleteProduct: (productId: number) => void;
-  onToggleProductActive?: (productId: number) => void;
+  onAddProduct: (product: Product, categoryName: string) => Promise<{ success: boolean; error?: string }> | void;
+  onUpdateProduct: (product: Product, categoryName: string) => Promise<{ success: boolean; error?: string }> | void;
+  onDeleteProduct: (productId: number) => Promise<{ success: boolean; error?: string }> | void;
+  onToggleProductActive?: (productId: number) => Promise<{ success: boolean; error?: string }> | void;
   isAddModalOpen?: boolean;
   onCloseAddModal?: () => void;
 }
@@ -60,6 +60,8 @@ export function AdminProductsTab({
     categoryName: string;
   } | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Form State for Add / Edit
   const [formName, setFormName] = useState("");
@@ -100,6 +102,7 @@ export function AdminProductsTab({
     setFormCasePrice(Math.round(1000 * discountFactor));
     setIsCreating(true);
     setEditingProduct(null);
+    setSaveError(null);
   }, [initialCategories, discountFactor]);
 
   // Sync external add modal trigger
@@ -140,6 +143,7 @@ export function AdminProductsTab({
     setFormCasePrice(product.casePrice || product.price * 10);
     setEditingProduct({ product, categoryName: catName });
     setIsCreating(false);
+    setSaveError(null);
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,64 +218,81 @@ export function AdminProductsTab({
     if (Number.isFinite(rate)) handleRateChange(rate);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) return;
 
-    const finalImage = formImage.trim() ? formImage.trim() : null;
-    const showImage = Boolean(finalImage);
-    const hasCustomPrice = formPrice !== Math.round(formRate * discountFactor);
+    setSaveError(null);
+    setIsSaving(true);
 
-    if (isCreating) {
-      const newProduct: Product = {
-        id: Date.now(),
-        name: formName.trim(),
-        tamil: formTamil.trim() || formName.trim(),
-        rate: formRate,
-        price: formPrice,
-        unit: formUnit.trim() || "1 Pkt",
-        slug: formName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        image: finalImage,
-        showImage,
-        active: formActive,
-        isDemo: false,
-        hasCustomPrice,
-        caseOnly: formCaseOnly,
-        ...(formCaseOnly
-          ? {
-              caseQuantity: formCaseQty,
-              caseValue: formCaseValue,
-              casePrice: formCasePrice,
-            }
-          : {}),
-      };
-      onAddProduct(newProduct, formCategory);
-      setIsCreating(false);
-      if (onCloseAddModal) onCloseAddModal();
-    } else if (editingProduct) {
-      const updated: Product = {
-        ...editingProduct.product,
-        name: formName.trim(),
-        tamil: formTamil.trim() || formName.trim(),
-        rate: formRate,
-        price: formPrice,
-        unit: formUnit.trim() || "1 Pkt",
-        slug: formName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        image: finalImage,
-        showImage,
-        active: formActive,
-        hasCustomPrice,
-        caseOnly: formCaseOnly,
-        ...(formCaseOnly
-          ? {
-              caseQuantity: formCaseQty,
-              caseValue: formCaseValue,
-              casePrice: formCasePrice,
-            }
-          : {}),
-      };
-      onUpdateProduct(updated, formCategory);
-      setEditingProduct(null);
+    try {
+      const finalImage = formImage.trim() ? formImage.trim() : null;
+      const showImage = Boolean(finalImage);
+      const hasCustomPrice = formPrice !== Math.round(formRate * discountFactor);
+
+      if (isCreating) {
+        const newProduct: Product = {
+          id: Date.now(),
+          name: formName.trim(),
+          tamil: formTamil.trim() || formName.trim(),
+          rate: formRate,
+          price: formPrice,
+          unit: formUnit.trim() || "1 Pkt",
+          slug: formName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          image: finalImage,
+          showImage,
+          active: formActive,
+          isDemo: false,
+          hasCustomPrice,
+          caseOnly: formCaseOnly,
+          ...(formCaseOnly
+            ? {
+                caseQuantity: formCaseQty,
+                caseValue: formCaseValue,
+                casePrice: formCasePrice,
+              }
+            : {}),
+        };
+        const res = await onAddProduct(newProduct, formCategory);
+        if (res && res.success === false) {
+          setSaveError(res.error || "Failed to save product to backend server.");
+          return;
+        }
+        setIsCreating(false);
+        if (onCloseAddModal) onCloseAddModal();
+      } else if (editingProduct) {
+        const updated: Product = {
+          ...editingProduct.product,
+          name: formName.trim(),
+          tamil: formTamil.trim() || formName.trim(),
+          rate: formRate,
+          price: formPrice,
+          unit: formUnit.trim() || "1 Pkt",
+          slug: formName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          image: finalImage,
+          showImage,
+          active: formActive,
+          hasCustomPrice,
+          caseOnly: formCaseOnly,
+          ...(formCaseOnly
+            ? {
+                caseQuantity: formCaseQty,
+                caseValue: formCaseValue,
+                casePrice: formCasePrice,
+              }
+            : {}),
+        };
+        const res = await onUpdateProduct(updated, formCategory);
+        if (res && res.success === false) {
+          setSaveError(res.error || "Failed to update product on backend server.");
+          return;
+        }
+        setEditingProduct(null);
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -503,7 +524,12 @@ export function AdminProductsTab({
                       {onToggleProductActive ? (
                         <button
                           type="button"
-                          onClick={() => onToggleProductActive(product.id)}
+                          onClick={async () => {
+                            const res = await onToggleProductActive(product.id);
+                            if (res && res.success === false) {
+                              alert(res.error || "Failed to update product status on server.");
+                            }
+                          }}
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors flex items-center justify-center gap-1 mx-auto ${
                             isActive
                               ? "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200"
@@ -553,11 +579,14 @@ export function AdminProductsTab({
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={async () => {
                             if (
-                              window.confirm(`Are you sure you want to delete "${product.name}"?`)
+                              window.confirm(`Are you sure you want to permanently delete "${product.name}"?`)
                             ) {
-                              onDeleteProduct(product.id);
+                              const res = await onDeleteProduct(product.id);
+                              if (res && res.success === false) {
+                                alert(res.error || "Failed to delete product from server.");
+                              }
                             }
                           }}
                           className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
@@ -954,24 +983,35 @@ export function AdminProductsTab({
                 )}
               </div>
 
+              {saveError && (
+                <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs font-semibold text-red-800 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span>{saveError}</span>
+                </div>
+              )}
+
               {/* Modal Buttons */}
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => {
                     setIsCreating(false);
                     setEditingProduct(null);
+                    setSaveError(null);
                     if (onCloseAddModal) onCloseAddModal();
                   }}
-                  className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground"
+                  className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow"
+                  disabled={isSaving}
+                  className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {isCreating ? "Save & Add Product" : "Update Product"}
+                  {isSaving && <Sparkles className="h-3.5 w-3.5 animate-spin" />}
+                  <span>{isSaving ? "Saving to Server..." : isCreating ? "Save & Add Product" : "Update Product"}</span>
                 </button>
               </div>
             </form>

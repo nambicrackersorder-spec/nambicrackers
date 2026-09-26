@@ -53,6 +53,8 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState("");
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleTestConnection = async () => {
     setTestStatus("testing");
@@ -75,20 +77,33 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
     }
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSettings({
-      name: shopName.trim(),
-      phone: phone.trim(),
-      phoneDisplay: phoneDisplay.trim(),
-      email: email.trim(),
-      address: address.trim(),
-      minOrder: Number(minOrder) || 0,
-      discount: Number(discount) || 0,
-      scriptUrl: scriptUrl.trim(),
-    });
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+    setIsSaving(true);
+    setSaveError(null);
+    setIsSaved(false);
+    try {
+      const res = await updateSettings({
+        name: shopName.trim(),
+        phone: phone.trim(),
+        phoneDisplay: phoneDisplay.trim(),
+        email: email.trim(),
+        address: address.trim(),
+        minOrder: Number(minOrder) || 0,
+        discount: Number(discount) || 0,
+        scriptUrl: scriptUrl.trim(),
+      });
+      if (res && res.success === false) {
+        setSaveError(res.error || "Failed to persist settings to server.");
+        return;
+      }
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 5000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const exportOrdersCSV = () => {
@@ -168,7 +183,14 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
       {isSaved && (
         <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-          <span>Settings saved and synchronized live to the Customer Website!</span>
+          <span>Settings permanently saved to backend and synchronized live to Customer Website!</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-xs font-semibold text-red-800 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+          <span>{saveError}</span>
         </div>
       )}
 
@@ -393,10 +415,11 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="btn-gold hover:btn-gold-hover px-6 py-2.5 text-xs font-bold flex items-center gap-1.5 shadow"
+            disabled={isSaving}
+            className="btn-gold hover:btn-gold-hover px-6 py-2.5 text-xs font-bold flex items-center gap-1.5 shadow disabled:opacity-50"
           >
-            <Save className="h-4 w-4" />
-            <span>Save Settings</span>
+            <Save className={`h-4 w-4 ${isSaving ? "animate-spin" : ""}`} />
+            <span>{isSaving ? "Saving to Server..." : "Save Settings"}</span>
           </button>
         </div>
       </form>

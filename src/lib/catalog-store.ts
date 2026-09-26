@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   CATEGORIES as BASE_CATEGORIES,
   ALL_PRODUCTS as BASE_ALL_PRODUCTS,
@@ -23,6 +23,7 @@ export interface Category {
   active?: boolean;
   order?: number;
   isDemo?: boolean;
+  _shopSettings?: ShopSettings;
 }
 
 export interface ShopSettings {
@@ -57,11 +58,12 @@ interface CatalogState {
   products: Product[];
 }
 
-// Memory caches
+// Memory caches (Temporary client cache; backend is the authoritative source of truth)
 let cachedCatalog: CatalogState | null = null;
 let cachedOrderStatus: Record<string, string> | null = null;
 let cachedSettings: ShopSettings | null = null;
 let remoteCatalogSyncStarted = false;
+let isSyncingRemote = false;
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -69,7 +71,16 @@ function notifyListeners() {
 }
 
 /* =========================================================================
-   Settings Persistent Store
+   URL & Helpers
+   ========================================================================= */
+
+function getCatalogSyncUrl(overrideSettings?: ShopSettings) {
+  const url = (overrideSettings || getSettings()).scriptUrl || DEFAULT_APPS_SCRIPT_URL;
+  return url ? `${url}${url.includes("?") ? "&" : "?"}` : "";
+}
+
+/* =========================================================================
+   Settings Persistent Store (Backend is Truth, localStorage is Cache)
    ========================================================================= */
 
 function loadSettingsFromStorage(): ShopSettings {
@@ -84,7 +95,10 @@ function loadSettingsFromStorage(): ShopSettings {
         return {
           name: typeof parsed.name === "string" && parsed.name ? parsed.name : DEFAULT_SETTINGS.name,
           phone: typeof parsed.phone === "string" && parsed.phone ? parsed.phone : DEFAULT_SETTINGS.phone,
-          phoneDisplay: typeof parsed.phoneDisplay === "string" && parsed.phoneDisplay ? parsed.phoneDisplay : DEFAULT_SETTINGS.phoneDisplay,
+          phoneDisplay:
+            typeof parsed.phoneDisplay === "string" && parsed.phoneDisplay
+              ? parsed.phoneDisplay
+              : DEFAULT_SETTINGS.phoneDisplay,
           email: typeof parsed.email === "string" && parsed.email ? parsed.email : DEFAULT_SETTINGS.email,
           address: typeof parsed.address === "string" && parsed.address ? parsed.address : DEFAULT_SETTINGS.address,
           minOrder: typeof parsed.minOrder === "number" && !isNaN(parsed.minOrder) ? parsed.minOrder : DEFAULT_SETTINGS.minOrder,
@@ -99,14 +113,14 @@ function loadSettingsFromStorage(): ShopSettings {
   return { ...DEFAULT_SETTINGS };
 }
 
-export function saveSettingsToStorage(settings: ShopSettings) {
+function commitSettingsToClientCache(settings: ShopSettings) {
   cachedSettings = settings;
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
       window.dispatchEvent(new Event("nambi_settings_updated"));
     } catch (err) {
-      console.error("Failed to save settings to localStorage", err);
+      console.error("Failed to write settings to local cache", err);
     }
   }
   notifyListeners();
@@ -119,51 +133,104 @@ export function getSettings(): ShopSettings {
   return cachedSettings;
 }
 
-export function updateSettings(partial: Partial<ShopSettings>): ShopSettings {
+/**
+ * Persists ShopSettings permanently to Backend first, then updates local cache.
+ */
+export async function saveSettingsToServer(settings: ShopSettings): Promise<{ success: boolean; error?: string }> {
+  const url = getCatalogSyncUrl(settings);
+  if (!url || typeof window === "undefined") {
+    commitSettingsToClientCache(settings);
+    return { success: true };
+  }
+
+  try {
+    // 1. Dual-payload: Save to both the catalog payload (for current Apps Script) and native settings
+    const currentState = getCatalogState();
+    const categoriesWithSettings = currentState.categories.map((c, idx) => {
+      if (idx === 0) {
+        return { ...c, _shopSettings: settings };
+      }
+      return c;
+    });
+
+    const body = new URLSearchParams({
+      action: "saveCatalog",
+      catalog: JSON.stringify({
+        categories: categoriesWithSettings,
+        settings: settings,
+      }),
+    });
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (data && data.success === false) {
+      throw new Error(data.error || "Backend rejected settings save");
+    }
+
+    // Also attempt native saveSettings endpoint if available
+    try {
+      const nativeBody = new URLSearchParams({
+        action: "saveSettings",
+        settings: JSON.stringify(settings),
+      });
+      await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: nativeBody,
+      });
+    } catch (eNative) {
+      // Ignore fallback if primary save succeeded
+    }
+
+    // CONFIRMED SUCCESS -> Update local cache and state
+    commitSettingsToClientCache(settings);
+    return { success: true };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error("Failed to persist settings to backend:", errorMsg);
+    return { success: false, error: errorMsg };
+  }
+}
+
+export async function updateSettings(
+  partial: Partial<ShopSettings>,
+): Promise<{ success: boolean; error?: string; settings: ShopSettings }> {
   const current = getSettings();
   const updated: ShopSettings = {
     ...current,
     ...partial,
   };
-  saveSettingsToStorage(updated);
-  return updated;
+  const result = await saveSettingsToServer(updated);
+  if (!result.success) {
+    return {
+      success: false,
+      ...(result.error ? { error: result.error } : {}),
+      settings: current,
+    };
+  }
+  return { success: true, settings: updated };
 }
 
-export function resetSettingsToDefault(): ShopSettings {
-  saveSettingsToStorage({ ...DEFAULT_SETTINGS });
-  return { ...DEFAULT_SETTINGS };
+export async function resetSettingsToDefault(): Promise<{ success: boolean; error?: string }> {
+  return await saveSettingsToServer({ ...DEFAULT_SETTINGS });
 }
 
 /* =========================================================================
-   Catalog Persistent Store
+   Catalog Persistent Store (Backend is Truth, localStorage is Cache)
    ========================================================================= */
 
 /**
- * Initializes catalog from localStorage or defaults to real base products & categories.
- * Preserves all real products & categories untouched.
+ * Initializes catalog from local cache or fallback.
+ * NOTE: NEVER sends fallback to the server on load (prevents reverse synchronization bugs).
  */
 function loadCatalogFromStorage(): CatalogState {
   if (typeof window === "undefined") {
-    return {
-      categories: BASE_CATEGORIES.map((c, i) => ({
-        ...c,
-        active: true,
-        order: i,
-        isDemo: false,
-        products: c.products.map((p) => ({
-          ...p,
-          active: true,
-          isDemo: false,
-          image: p.image || BASE_PRODUCT_IMAGE_MAP[p.name] || null,
-        })),
-      })),
-      products: BASE_ALL_PRODUCTS.map((p) => ({
-        ...p,
-        active: true,
-        isDemo: false,
-        image: p.image || BASE_PRODUCT_IMAGE_MAP[p.name] || null,
-      })),
-    };
+    return getBaseCatalogFallback();
   }
 
   try {
@@ -171,39 +238,38 @@ function loadCatalogFromStorage(): CatalogState {
     if (raw) {
       const parsed = JSON.parse(raw) as { categories: Category[] };
       if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
-        // Hydrate base catalog images on any products that don't have explicit custom/removed status
-        const categories = parsed.categories.map((c) => ({
-          ...c,
-          products: c.products.map((p) => {
+        const categories: Category[] = parsed.categories.map((c) => {
+          const products: Product[] = c.products.map((p) => {
             const baseImg = BASE_PRODUCT_IMAGE_MAP[p.name];
             const isExplicitlyRemoved = p.image === null && p.showImage === false;
             const hasCustomImage = typeof p.image === "string" && p.image.trim() !== "";
+            const finalImg = isExplicitlyRemoved ? null : hasCustomImage ? p.image : baseImg ?? null;
+            const showImg = isExplicitlyRemoved ? false : Boolean(p.showImage ?? (finalImg !== null));
             return {
               ...p,
-              image: isExplicitlyRemoved
-                ? null
-                : hasCustomImage
-                  ? p.image
-                  : baseImg ?? null,
-              showImage: isExplicitlyRemoved
-                ? false
-                : (p.showImage ?? (p.image || baseImg ? true : undefined)),
+              image: finalImg,
+              showImage: showImg,
+              active: p.active !== false,
             };
-          }),
-        }));
+          });
+          return {
+            ...c,
+            products,
+          };
+        });
         const products = categories.flatMap((c) => c.products);
-        return {
-          categories,
-          products,
-        };
+        return { categories, products };
       }
     }
   } catch (err) {
     console.warn("Could not parse saved catalog from localStorage, falling back to base catalog", err);
   }
 
-  // Base fallback initialized with real catalog (182 products, 26 categories)
-  const initialCategories: Category[] = BASE_CATEGORIES.map((c, i) => ({
+  return getBaseCatalogFallback();
+}
+
+function getBaseCatalogFallback(): CatalogState {
+  const categories: Category[] = BASE_CATEGORIES.map((c, i) => ({
     ...c,
     active: true,
     order: i,
@@ -213,21 +279,15 @@ function loadCatalogFromStorage(): CatalogState {
       active: true,
       isDemo: false,
       image: p.image || BASE_PRODUCT_IMAGE_MAP[p.name] || null,
+      showImage: Boolean(p.image || BASE_PRODUCT_IMAGE_MAP[p.name]),
     })),
   }));
 
-  const initialProducts = initialCategories.flatMap((c) => c.products);
-
-  const initial = {
-    categories: initialCategories,
-    products: initialProducts,
-  };
-
-  saveCatalogToStorage(initial);
-  return initial;
+  const products = categories.flatMap((c) => c.products);
+  return { categories, products };
 }
 
-function saveCatalogToStorage(state: CatalogState) {
+function commitCatalogToClientCache(state: CatalogState) {
   cachedCatalog = state;
   if (typeof window !== "undefined") {
     try {
@@ -237,57 +297,150 @@ function saveCatalogToStorage(state: CatalogState) {
       );
       window.dispatchEvent(new Event("nambi_catalog_updated"));
     } catch (err) {
-      console.error("Failed to save catalog to localStorage", err);
+      console.error("Failed to write catalog to local cache", err);
     }
   }
-  void saveCatalogToServer(state);
   notifyListeners();
 }
 
-function getCatalogSyncUrl() {
-  const url = getSettings().scriptUrl || DEFAULT_APPS_SCRIPT_URL;
-  return url ? `${url}${url.includes("?") ? "&" : "?"}` : "";
-}
-
-async function saveCatalogToServer(state: CatalogState) {
-  const url = getCatalogSyncUrl();
-  if (!url || typeof window === "undefined") return;
-
-  try {
-    const body = new URLSearchParams({
-      action: "saveCatalog",
-      catalog: JSON.stringify({ categories: state.categories }),
-    });
-    await fetch(url, { method: "POST", body });
-  } catch (err) {
-    console.warn("Could not sync catalog to Apps Script", err);
-  }
-}
-
-async function loadCatalogFromServer() {
-  const url = getCatalogSyncUrl();
-  if (!url || typeof window === "undefined") return;
-
-  try {
-    const response = await fetch(`${url}action=catalog`);
-    const data = await response.json();
-    if (!data.success || !Array.isArray(data.categories) || data.categories.length === 0) return;
-
-    const categories = data.categories as Category[];
-    const state = { categories, products: categories.flatMap((category) => category.products) };
-    cachedCatalog = state;
-    localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify({ categories }));
-    window.dispatchEvent(new Event("nambi_catalog_updated"));
-  } catch (err) {
-    console.warn("Could not load catalog from Apps Script, using local catalog", err);
-  }
-}
-
-function getCatalogState(): CatalogState {
+export function getCatalogState(): CatalogState {
   if (!cachedCatalog) {
     cachedCatalog = loadCatalogFromStorage();
   }
   return cachedCatalog;
+}
+
+/**
+ * Sends catalog permanently to Backend and returns confirmation.
+ */
+export async function saveCatalogToServer(
+  state: CatalogState,
+  customSettings?: ShopSettings,
+): Promise<{ success: boolean; error?: string }> {
+  const currentSettings = customSettings || getSettings();
+  const url = getCatalogSyncUrl(currentSettings);
+  if (!url || typeof window === "undefined") {
+    commitCatalogToClientCache(state);
+    return { success: true };
+  }
+
+  try {
+    // Embed _shopSettings into categories payload for guaranteed persistence across all Apps Script deployments
+    const categoriesWithSettings = state.categories.map((c, idx) => {
+      if (idx === 0) {
+        return { ...c, _shopSettings: currentSettings };
+      }
+      return c;
+    });
+
+    const body = new URLSearchParams({
+      action: "saveCatalog",
+      catalog: JSON.stringify({
+        categories: categoriesWithSettings,
+        settings: currentSettings,
+      }),
+    });
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (data && data.success === false) {
+      throw new Error(data.error || "Backend rejected catalog save");
+    }
+
+    // Backend Confirmed -> Commit to local cache & notify UI
+    commitCatalogToClientCache(state);
+    return { success: true };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error("Failed to persist catalog to backend:", errorMsg);
+    return { success: false, error: errorMsg };
+  }
+}
+
+/**
+ * Loads the latest data from the backend source of truth and synchronizes client cache.
+ */
+export async function loadCatalogFromServer(): Promise<boolean> {
+  const url = getCatalogSyncUrl();
+  if (!url || typeof window === "undefined" || isSyncingRemote) return false;
+
+  isSyncingRemote = true;
+  try {
+    const response = await fetch(`${url}action=catalog`);
+    const data = await response.json();
+    if (!data || !data.success || !Array.isArray(data.categories) || data.categories.length === 0) {
+      return false;
+    }
+
+    // 1. Process categories & products
+    const categories: Category[] = (data.categories as Category[]).map((c) => {
+      const products: Product[] = (c.products || []).map((p) => {
+        const baseImg = BASE_PRODUCT_IMAGE_MAP[p.name];
+        const isExplicitlyRemoved = p.image === null && p.showImage === false;
+        const hasCustomImage = typeof p.image === "string" && p.image.trim() !== "";
+        const finalImg = isExplicitlyRemoved ? null : hasCustomImage ? p.image : baseImg ?? null;
+        const showImg = isExplicitlyRemoved ? false : Boolean(p.showImage ?? (finalImg !== null));
+        return {
+          ...p,
+          image: finalImg,
+          showImage: showImg,
+          active: p.active !== false,
+        };
+      });
+      return {
+        ...c,
+        products,
+      };
+    });
+
+    const state: CatalogState = { categories, products: categories.flatMap((category) => category.products) };
+    commitCatalogToClientCache(state);
+
+    // 2. Process any backend settings returned in payload or attached to categories
+    const backendSettings: ShopSettings | undefined =
+      data.settings || data.categories[0]?._shopSettings;
+
+    if (backendSettings && typeof backendSettings === "object") {
+      const mergedSettings: ShopSettings = {
+        name: typeof backendSettings.name === "string" && backendSettings.name ? backendSettings.name : DEFAULT_SETTINGS.name,
+        phone: typeof backendSettings.phone === "string" && backendSettings.phone ? backendSettings.phone : DEFAULT_SETTINGS.phone,
+        phoneDisplay:
+          typeof backendSettings.phoneDisplay === "string" && backendSettings.phoneDisplay
+            ? backendSettings.phoneDisplay
+            : DEFAULT_SETTINGS.phoneDisplay,
+        email: typeof backendSettings.email === "string" && backendSettings.email ? backendSettings.email : DEFAULT_SETTINGS.email,
+        address:
+          typeof backendSettings.address === "string" && backendSettings.address
+            ? backendSettings.address
+            : DEFAULT_SETTINGS.address,
+        minOrder:
+          typeof backendSettings.minOrder === "number" && !isNaN(backendSettings.minOrder)
+            ? backendSettings.minOrder
+            : DEFAULT_SETTINGS.minOrder,
+        discount:
+          typeof backendSettings.discount === "number" && !isNaN(backendSettings.discount)
+            ? backendSettings.discount
+            : DEFAULT_SETTINGS.discount,
+        scriptUrl:
+          typeof backendSettings.scriptUrl === "string" && backendSettings.scriptUrl
+            ? backendSettings.scriptUrl
+            : DEFAULT_SETTINGS.scriptUrl,
+      };
+      commitSettingsToClientCache(mergedSettings);
+    }
+
+    return true;
+  } catch (err) {
+    console.warn("Could not load latest catalog from Apps Script backend, using client cache", err);
+    return false;
+  } finally {
+    isSyncingRemote = false;
+  }
 }
 
 /* =========================================================================
@@ -334,14 +487,17 @@ export function setOrderStatus(orderIdentifier: string, newStatus: string) {
 }
 
 /* =========================================================================
-   Catalog CRUD Mutations (Used by Admin, Observed by Customer & Admin)
+   Catalog CRUD Mutations (Admin -> Backend First -> Local Cache -> Customer)
    ========================================================================= */
 
-export function addProductToStore(product: Product, categoryName: string) {
+export async function addProductToStore(
+  product: Product,
+  categoryName: string,
+): Promise<{ success: boolean; error?: string }> {
   const state = getCatalogState();
   let foundCat = false;
 
-  const updatedCategories = state.categories.map((cat) => {
+  const updatedCategories: Category[] = state.categories.map((cat) => {
     if (cat.name.toLowerCase() === categoryName.trim().toLowerCase()) {
       foundCat = true;
       return {
@@ -352,7 +508,6 @@ export function addProductToStore(product: Product, categoryName: string) {
     return cat;
   });
 
-  // If category didn't exist, create it
   if (!foundCat) {
     updatedCategories.push({
       name: categoryName.trim(),
@@ -364,15 +519,17 @@ export function addProductToStore(product: Product, categoryName: string) {
   }
 
   const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  saveCatalogToStorage({ categories: updatedCategories, products: updatedProducts });
+  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
 }
 
-export function updateProductInStore(updated: Product, targetCategoryName?: string) {
+export async function updateProductInStore(
+  updated: Product,
+  targetCategoryName?: string,
+): Promise<{ success: boolean; error?: string }> {
   const state = getCatalogState();
   let targetFound = false;
 
-  // First remove product from all categories, then insert into target category
-  const updatedCategories = state.categories.map((cat) => {
+  const updatedCategories: Category[] = state.categories.map((cat) => {
     const hasProduct = cat.products.some((p) => p.id === updated.id);
     const isTarget = targetCategoryName
       ? cat.name.toLowerCase() === targetCategoryName.trim().toLowerCase()
@@ -386,14 +543,12 @@ export function updateProductInStore(updated: Product, targetCategoryName?: stri
           products: cat.products.map((p) => (p.id === updated.id ? updated : p)),
         };
       } else {
-        // Moved to this category
         return {
           ...cat,
           products: [...cat.products, updated],
         };
       }
     } else if (hasProduct) {
-      // Removed from old category
       return {
         ...cat,
         products: cat.products.filter((p) => p.id !== updated.id),
@@ -413,35 +568,41 @@ export function updateProductInStore(updated: Product, targetCategoryName?: stri
   }
 
   const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  saveCatalogToStorage({ categories: updatedCategories, products: updatedProducts });
+  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
 }
 
-export function deleteProductFromStore(productId: number) {
+export async function deleteProductFromStore(
+  productId: number,
+): Promise<{ success: boolean; error?: string }> {
   const state = getCatalogState();
-  const updatedCategories = state.categories.map((cat) => ({
+  const updatedCategories: Category[] = state.categories.map((cat) => ({
     ...cat,
     products: cat.products.filter((p) => p.id !== productId),
   }));
   const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  saveCatalogToStorage({ categories: updatedCategories, products: updatedProducts });
+  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
 }
 
-export function toggleProductActiveInStore(productId: number) {
+export async function toggleProductActiveInStore(
+  productId: number,
+): Promise<{ success: boolean; error?: string }> {
   const state = getCatalogState();
-  const updatedCategories = state.categories.map((cat) => ({
+  const updatedCategories: Category[] = state.categories.map((cat) => ({
     ...cat,
     products: cat.products.map((p) =>
       p.id === productId ? { ...p, active: p.active === false ? true : false } : p,
     ),
   }));
   const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  saveCatalogToStorage({ categories: updatedCategories, products: updatedProducts });
+  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
 }
 
-export function addCategoryToStore(categoryName: string) {
+export async function addCategoryToStore(
+  categoryName: string,
+): Promise<{ success: boolean; error?: string }> {
   const state = getCatalogState();
   if (state.categories.some((c) => c.name.toLowerCase() === categoryName.trim().toLowerCase())) {
-    return; // Already exists
+    return { success: true };
   }
   const newCat: Category = {
     name: categoryName.trim(),
@@ -451,30 +612,35 @@ export function addCategoryToStore(categoryName: string) {
     isDemo: false,
   };
   const updatedCategories = [...state.categories, newCat];
-  saveCatalogToStorage({ categories: updatedCategories, products: state.products });
+  return await saveCatalogToServer({ categories: updatedCategories, products: state.products });
 }
 
-export function updateCategoryInStore(
+export async function updateCategoryInStore(
   oldName: string,
   updated: { name?: string; active?: boolean; hideImages?: boolean },
-) {
+): Promise<{ success: boolean; error?: string }> {
   const state = getCatalogState();
-  const updatedCategories = state.categories.map((cat) => {
+  const updatedCategories: Category[] = state.categories.map((cat) => {
     if (cat.name.toLowerCase() === oldName.trim().toLowerCase()) {
+      const newName = updated.name !== undefined ? updated.name.trim() : cat.name;
+      const newActive = updated.active !== undefined ? updated.active : cat.active;
+      const newHideImages = updated.hideImages !== undefined ? updated.hideImages : cat.hideImages;
       return {
         ...cat,
-        name: updated.name !== undefined ? updated.name.trim() : cat.name,
-        active: updated.active !== undefined ? updated.active : cat.active,
-        hideImages: updated.hideImages !== undefined ? updated.hideImages : cat.hideImages,
+        name: newName,
+        ...(newActive !== undefined ? { active: newActive } : {}),
+        ...(newHideImages !== undefined ? { hideImages: newHideImages } : {}),
       };
     }
     return cat;
   });
   const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  saveCatalogToStorage({ categories: updatedCategories, products: updatedProducts });
+  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
 }
 
-export function deleteCategoryFromStore(categoryName: string): { success: boolean; error?: string } {
+export async function deleteCategoryFromStore(
+  categoryName: string,
+): Promise<{ success: boolean; error?: string }> {
   const state = getCatalogState();
   const cat = state.categories.find(
     (c) => c.name.toLowerCase() === categoryName.trim().toLowerCase(),
@@ -492,53 +658,65 @@ export function deleteCategoryFromStore(categoryName: string): { success: boolea
     (c) => c.name.toLowerCase() !== categoryName.trim().toLowerCase(),
   );
   const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  saveCatalogToStorage({ categories: updatedCategories, products: updatedProducts });
-  return { success: true };
+  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
 }
 
-export function reorderCategoryInStore(categoryName: string, direction: "up" | "down") {
+export async function reorderCategoryInStore(
+  categoryName: string,
+  direction: "up" | "down",
+): Promise<{ success: boolean; error?: string }> {
   const state = getCatalogState();
   const idx = state.categories.findIndex(
     (c) => c.name.toLowerCase() === categoryName.trim().toLowerCase(),
   );
-  if (idx === -1) return;
+  if (idx === -1) return { success: true };
 
   const targetIdx = direction === "up" ? idx - 1 : idx + 1;
-  if (targetIdx < 0 || targetIdx >= state.categories.length) return;
+  if (targetIdx < 0 || targetIdx >= state.categories.length) return { success: true };
 
   const categoriesCopy = [...state.categories];
-  const [removed] = categoriesCopy.splice(idx, 1);
+  const removed = categoriesCopy[idx];
+  if (!removed) return { success: true };
+
+  categoriesCopy.splice(idx, 1);
   categoriesCopy.splice(targetIdx, 0, removed);
 
-  const reindexed = categoriesCopy.map((c, i) => ({ ...c, order: i }));
-  saveCatalogToStorage({ categories: reindexed, products: state.products });
+  const reindexed: Category[] = categoriesCopy.map((c, i) => ({ ...c, order: i }));
+  return await saveCatalogToServer({ categories: reindexed, products: state.products });
 }
 
-export function reorderProductInCategory(categoryName: string, productId: number, direction: "up" | "down") {
+export async function reorderProductInCategory(
+  categoryName: string,
+  productId: number,
+  direction: "up" | "down",
+): Promise<{ success: boolean; error?: string }> {
   const state = getCatalogState();
   const targetCategory = state.categories.find(
     (c) => c.name.toLowerCase() === categoryName.trim().toLowerCase(),
   );
-  if (!targetCategory) return;
+  if (!targetCategory) return { success: true };
 
   const idx = targetCategory.products.findIndex((p) => p.id === productId);
-  if (idx === -1) return;
+  if (idx === -1) return { success: true };
 
   const targetIdx = direction === "up" ? idx - 1 : idx + 1;
-  if (targetIdx < 0 || targetIdx >= targetCategory.products.length) return;
+  if (targetIdx < 0 || targetIdx >= targetCategory.products.length) return { success: true };
 
   const productList = [...targetCategory.products];
-  const [removed] = productList.splice(idx, 1);
+  const removed = productList[idx];
+  if (!removed) return { success: true };
+
+  productList.splice(idx, 1);
   productList.splice(targetIdx, 0, removed);
 
-  const updatedCategories = state.categories.map((cat) =>
+  const updatedCategories: Category[] = state.categories.map((cat) =>
     cat.name.toLowerCase() === categoryName.trim().toLowerCase()
       ? { ...cat, products: productList }
       : cat,
   );
 
   const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  saveCatalogToStorage({ categories: updatedCategories, products: updatedProducts });
+  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
 }
 
 /* =========================================================================
@@ -658,29 +836,26 @@ export function filterRealOrders<
    Admin Demo Data Reset Action
    ========================================================================= */
 
-/**
- * Removes strictly demo/test data.
- * Real products, real categories, real customer orders are never touched.
- */
-export function resetAdminDemoData(currentOrders?: Array<{
+export async function resetAdminDemoData(currentOrders?: Array<{
   orderId?: string;
   name?: string;
   mobile?: string;
   items?: string;
   isDemo?: boolean;
   timestamp?: string;
-}>): {
+}>): Promise<{
   removedDemoProducts: number;
   removedDemoCategories: number;
   removedDemoStatuses: number;
   removedDemoOrders: number;
-} {
+  success: boolean;
+  error?: string;
+}> {
   const state = getCatalogState();
   let removedDemoProducts = 0;
   let removedDemoCategories = 0;
 
-  // Filter out any products or categories explicitly marked with isDemo === true
-  const cleanedCategories = state.categories
+  const cleanedCategories: Category[] = state.categories
     .filter((c) => {
       if (c.isDemo === true) {
         removedDemoCategories += 1;
@@ -703,9 +878,8 @@ export function resetAdminDemoData(currentOrders?: Array<{
     });
 
   const cleanedProducts = cleanedCategories.flatMap((c) => c.products);
-  saveCatalogToStorage({ categories: cleanedCategories, products: cleanedProducts });
+  const saveResult = await saveCatalogToServer({ categories: cleanedCategories, products: cleanedProducts });
 
-  // Clean demo order status keys if prefixed with "DEMO-" or "test"
   const currentStatuses = getOrderStatusMap();
   const cleanedStatuses: Record<string, string> = {};
   let removedDemoStatuses = 0;
@@ -718,7 +892,6 @@ export function resetAdminDemoData(currentOrders?: Array<{
   });
   saveOrderStatusToStorage(cleanedStatuses);
 
-  // Clear demo orders from current orders list
   const clearedSet = getClearedDemoOrderIds();
   let removedDemoOrders = 0;
 
@@ -740,11 +913,13 @@ export function resetAdminDemoData(currentOrders?: Array<{
     removedDemoCategories,
     removedDemoStatuses,
     removedDemoOrders,
+    success: saveResult.success,
+    ...(saveResult.error ? { error: saveResult.error } : {}),
   };
 }
 
 /* =========================================================================
-   React Hooks for Single Source of Truth
+   React Hooks for Real Backend Single Source of Truth
    ========================================================================= */
 
 function subscribe(callback: () => void) {
@@ -804,8 +979,11 @@ export function useCatalog() {
   const [state, setState] = useState<CatalogState>(getCatalogState);
   const [currentSettings, setCurrentSettings] = useState<ShopSettings>(getSettings);
 
+  const refreshCatalog = useCallback(async () => {
+    await loadCatalogFromServer();
+  }, []);
+
   useEffect(() => {
-    // Sync initial state on mount (client-side)
     setState(getCatalogState());
     setCurrentSettings(getSettings());
     if (!remoteCatalogSyncStarted) {
@@ -847,6 +1025,7 @@ export function useCatalog() {
     products: resolvedProducts,     // Full list for Admin with dynamic prices
     activeCategories,               // Customer website visible list
     activeProducts,                 // Customer website visible list
+    refreshCatalog,
     addProduct: addProductToStore,
     updateProduct: updateProductInStore,
     deleteProduct: deleteProductFromStore,

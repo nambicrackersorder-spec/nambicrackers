@@ -56,6 +56,9 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.action === "catalog") {
     return getCatalog_();
   }
+  if (e && e.parameter && (e.parameter.action === "settings" || e.parameter.action === "getSettings")) {
+    return getSettings_();
+  }
   if (e && e.parameter && e.parameter.action === "list") {
     return listOrders_();
   }
@@ -72,12 +75,21 @@ function doPost(e) {
   if (e && e.parameter && e.parameter.action === "saveCatalog") {
     return saveCatalog_(e.parameter.catalog || "");
   }
+  if (e && e.parameter && e.parameter.action === "saveSettings") {
+    return saveSettings_(e.parameter.settings || "");
+  }
   if (e && e.parameter && e.parameter.action === "updateStatus") {
     return updateOrderStatusByRequest_(e.parameter || {});
   }
   if (e && e.postData && e.postData.contents) {
     try {
       var body = JSON.parse(e.postData.contents);
+      if (body && body.action === "saveCatalog") {
+        return saveCatalog_(body.catalog || body);
+      }
+      if (body && body.action === "saveSettings") {
+        return saveSettings_(body.settings || body);
+      }
       if (body && body.action === "updateStatus") {
         return updateOrderStatusByRequest_(body);
       }
@@ -88,31 +100,80 @@ function doPost(e) {
 
 var CATALOG_CHUNK_SIZE = 8000;
 
+function getSavedSettings_() {
+  try {
+    var properties = PropertiesService.getScriptProperties();
+    var raw = properties.getProperty("SHOP_SETTINGS");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    return null;
+  }
+}
+
+function getSettings_() {
+  try {
+    var settings = getSavedSettings_();
+    return json_({ success: true, settings: settings });
+  } catch (err) {
+    return json_({ success: false, error: String(err) });
+  }
+}
+
+function saveSettings_(rawSettings) {
+  try {
+    var parsed = typeof rawSettings === "object" ? rawSettings : JSON.parse(String(rawSettings || "{}"));
+    if (!parsed || typeof parsed !== "object") {
+      return json_({ success: false, error: "Invalid settings" });
+    }
+    var properties = PropertiesService.getScriptProperties();
+    properties.setProperty("SHOP_SETTINGS", JSON.stringify(parsed));
+    return json_({ success: true, settings: parsed });
+  } catch (err) {
+    return json_({ success: false, error: String(err) });
+  }
+}
+
 function getCatalog_() {
   try {
     var properties = PropertiesService.getScriptProperties();
     var count = Number(properties.getProperty("CATALOG_CHUNK_COUNT") || 0);
-    if (!count) return json_({ success: true, categories: [] });
+    var savedSettings = getSavedSettings_();
+    if (!count) return json_({ success: true, categories: [], settings: savedSettings });
 
     var catalog = "";
     for (var i = 0; i < count; i++) {
       catalog += properties.getProperty("CATALOG_CHUNK_" + i) || "";
     }
     var parsed = JSON.parse(catalog);
-    return json_({ success: true, categories: parsed.categories || [] });
+    return json_({
+      success: true,
+      categories: parsed.categories || [],
+      settings: parsed.settings || savedSettings || null,
+    });
   } catch (err) {
-    return json_({ success: false, error: String(err), categories: [] });
+    return json_({ success: false, error: String(err), categories: [], settings: null });
   }
 }
 
 function saveCatalog_(rawCatalog) {
   try {
-    var parsed = JSON.parse(String(rawCatalog || "{}"));
+    var parsed = typeof rawCatalog === "object" ? rawCatalog : JSON.parse(String(rawCatalog || "{}"));
     if (!parsed || !Array.isArray(parsed.categories)) {
       return json_({ success: false, error: "Invalid catalog" });
     }
 
-    var serialized = JSON.stringify({ categories: parsed.categories });
+    if (parsed.settings && typeof parsed.settings === "object") {
+      try {
+        var props = PropertiesService.getScriptProperties();
+        props.setProperty("SHOP_SETTINGS", JSON.stringify(parsed.settings));
+      } catch (eSettings) {}
+    }
+
+    var serialized = JSON.stringify({
+      categories: parsed.categories,
+      settings: parsed.settings || getSavedSettings_() || null,
+    });
     var properties = PropertiesService.getScriptProperties();
     var previousCount = Number(properties.getProperty("CATALOG_CHUNK_COUNT") || 0);
     var nextCount = Math.ceil(serialized.length / CATALOG_CHUNK_SIZE);

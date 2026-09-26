@@ -110,8 +110,9 @@ export function AdminAnalyticsTab({
 
   // Real Day-of-Week Revenue aggregation from actual orders
   const revenueHistory = useMemo(() => {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const dayTotals: Record<string, number> = {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+    type DayKey = (typeof days)[number];
+    const dayTotals: Record<DayKey, number> = {
       Sun: 0,
       Mon: 0,
       Tue: 0,
@@ -124,27 +125,30 @@ export function AdminAnalyticsTab({
     orders.forEach((o) => {
       const amount = Number(String(o.totalAmount).replace(/[^\d.]/g, "")) || 0;
       if (!o.timestamp) {
-        dayTotals.Mon += amount;
+        dayTotals["Mon"] += amount;
         return;
       }
       try {
         const d = new Date(o.timestamp);
         if (!isNaN(d.getTime())) {
-          const dayName = days[d.getDay()];
-          if (dayName) dayTotals[dayName] += amount;
+          const dayIdx = d.getDay();
+          const dayName = days[dayIdx];
+          if (dayName && dayName in dayTotals) {
+            dayTotals[dayName] += amount;
+          }
         } else {
-          // If unparseable, distribute proportionally to Monday
-          dayTotals.Mon += amount;
+          dayTotals["Mon"] += amount;
         }
       } catch {
-        dayTotals.Mon += amount;
+        dayTotals["Mon"] += amount;
       }
     });
 
     // Return chronological Mon -> Sun
-    return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => ({
+    const sortedDays: DayKey[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    return sortedDays.map((day) => ({
       day,
-      sales: dayTotals[day] || 0,
+      sales: dayTotals[day] ?? 0,
     }));
   }, [orders]);
 
