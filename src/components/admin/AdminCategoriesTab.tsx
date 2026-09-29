@@ -431,22 +431,22 @@ export function AdminCategoriesTab({
       {/* Edit Category Modal */}
       {editingCategory && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-2 sm:p-4 overflow-y-auto"
           onClick={() => setEditingCategory(null)}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-gold/60 bg-card p-5 sm:p-6 shadow-2xl space-y-4"
+            className="w-full max-w-md rounded-2xl border border-gold/60 bg-card p-4 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                <h3 className="font-display font-bold text-lg text-primary">Edit Category</h3>
+                <h3 className="font-display font-bold text-base sm:text-lg text-primary">Edit Category</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingCategory(null)}
-                className="rounded p-1 text-muted-foreground hover:bg-muted"
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -499,7 +499,7 @@ export function AdminCategoriesTab({
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-2 pt-3 border-t border-border">
                 <button
                   type="button"
                   disabled={isSaving}
@@ -507,14 +507,14 @@ export function AdminCategoriesTab({
                     setEditingCategory(null);
                     setSaveError(null);
                   }}
-                  className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground disabled:opacity-50"
+                  className="flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground disabled:opacity-50 text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow disabled:opacity-50 flex items-center gap-1.5"
+                  className="flex-1 sm:flex-initial btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow disabled:opacity-50 flex items-center justify-center gap-1.5 text-center"
                 >
                   {isSaving && <Sparkles className="h-3.5 w-3.5 animate-spin" />}
                   <span>{isSaving ? "Saving to Server..." : "Save Changes"}</span>
@@ -528,20 +528,20 @@ export function AdminCategoriesTab({
       {/* Add Category Modal */}
       {isAddModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-2 sm:p-4 overflow-y-auto"
           onClick={() => {
             setIsAddModalOpen(false);
             setSaveError(null);
           }}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-gold/60 bg-card p-5 sm:p-6 shadow-2xl space-y-4"
+            className="w-full max-w-md rounded-2xl border border-gold/60 bg-card p-4 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                <h3 className="font-display font-bold text-lg text-primary">Create New Category</h3>
+                <h3 className="font-display font-bold text-base sm:text-lg text-primary">Create New Category</h3>
               </div>
               <button
                 type="button"
@@ -549,7 +549,7 @@ export function AdminCategoriesTab({
                   setIsAddModalOpen(false);
                   setSaveError(null);
                 }}
-                className="rounded p-1 text-muted-foreground hover:bg-muted"
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -577,7 +577,7 @@ export function AdminCategoriesTab({
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-2 pt-3 border-t border-border">
                 <button
                   type="button"
                   disabled={isSaving}
@@ -585,14 +585,14 @@ export function AdminCategoriesTab({
                     setIsAddModalOpen(false);
                     setSaveError(null);
                   }}
-                  className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground disabled:opacity-50"
+                  className="flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground disabled:opacity-50 text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow disabled:opacity-50 flex items-center gap-1.5"
+                  className="flex-1 sm:flex-initial btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow disabled:opacity-50 flex items-center justify-center gap-1.5 text-center"
                 >
                   {isSaving && <Sparkles className="h-3.5 w-3.5 animate-spin" />}
                   <span>{isSaving ? "Saving to Server..." : "Create Category"}</span>

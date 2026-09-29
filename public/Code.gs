@@ -98,7 +98,8 @@ function doPost(e) {
   return handleRequest(e);
 }
 
-var CATALOG_CHUNK_SIZE = 8000;
+var CATALOG_SHEET_NAME = "Catalog_Store";
+var CATALOG_SHEET_CHUNK_SIZE = 40000;
 
 function getSavedSettings_() {
   try {
@@ -128,23 +129,118 @@ function saveSettings_(rawSettings) {
     }
     var properties = PropertiesService.getScriptProperties();
     properties.setProperty("SHOP_SETTINGS", JSON.stringify(parsed));
+
+    // Also update settings in Catalog_Store sheet if present
+    try {
+      var sheet = getCatalogSheet_();
+      var lastRow = sheet.getLastRow();
+      if (lastRow > 1) {
+        var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        var catalog = "";
+        for (var i = 0; i < values.length; i++) {
+          catalog += String(values[i][0] || "");
+        }
+        if (catalog) {
+          var parsedCat = JSON.parse(catalog);
+          parsedCat.settings = parsed;
+          saveCatalogToSheet_(JSON.stringify(parsedCat));
+        }
+      }
+    } catch (sheetSyncErr) {}
+
     return json_({ success: true, settings: parsed });
   } catch (err) {
     return json_({ success: false, error: String(err) });
   }
 }
 
-function getCatalog_() {
+function getCatalogSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(CATALOG_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CATALOG_SHEET_NAME);
+  }
+  return sheet;
+}
+
+function saveCatalogToSheet_(serialized) {
+  var sheet = getCatalogSheet_();
+  var nextCount = Math.ceil(serialized.length / CATALOG_SHEET_CHUNK_SIZE);
+  var rows = [];
+  for (var i = 0; i < nextCount; i++) {
+    rows.push([
+      serialized.slice(i * CATALOG_SHEET_CHUNK_SIZE, (i + 1) * CATALOG_SHEET_CHUNK_SIZE),
+    ]);
+  }
+
+  sheet.clearContents();
+  sheet
+    .getRange(1, 1, 1, 2)
+    .setValues([
+      [
+        "Catalog Storage (Managed automatically - do not edit directly)",
+        "Last Updated: " + Utilities.formatDate(new Date(), "Asia/Kolkata", "dd MMM yyyy, hh:mm:ss a"),
+      ],
+    ]);
+  sheet
+    .getRange(1, 1, 1, 2)
+    .setFontWeight("bold")
+    .setBackground(C_MAROON)
+    .setFontColor("#ffffff");
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, 1).setValues(rows);
+  }
+}
+
+function clearLegacyCatalogProperties_() {
   try {
     var properties = PropertiesService.getScriptProperties();
     var count = Number(properties.getProperty("CATALOG_CHUNK_COUNT") || 0);
+    if (count > 0) {
+      for (var i = 0; i < count + 10; i++) {
+        properties.deleteProperty("CATALOG_CHUNK_" + i);
+      }
+      properties.deleteProperty("CATALOG_CHUNK_COUNT");
+    }
+  } catch (ignore) {}
+}
+
+function getCatalog_() {
+  try {
     var savedSettings = getSavedSettings_();
-    if (!count) return json_({ success: true, categories: [], settings: savedSettings });
+    var sheet = getCatalogSheet_();
+    var lastRow = sheet.getLastRow();
 
     var catalog = "";
-    for (var i = 0; i < count; i++) {
-      catalog += properties.getProperty("CATALOG_CHUNK_" + i) || "";
+    if (lastRow > 1) {
+      var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var i = 0; i < values.length; i++) {
+        catalog += String(values[i][0] || "");
+      }
     }
+
+    // Migration / Fallback: If sheet has no data yet, check Script Properties
+    if (!catalog) {
+      var properties = PropertiesService.getScriptProperties();
+      var count = Number(properties.getProperty("CATALOG_CHUNK_COUNT") || 0);
+      if (count > 0) {
+        for (var j = 0; j < count; j++) {
+          catalog += properties.getProperty("CATALOG_CHUNK_" + j) || "";
+        }
+        if (catalog) {
+          try {
+            saveCatalogToSheet_(catalog);
+            clearLegacyCatalogProperties_();
+          } catch (migErr) {}
+        }
+      }
+    }
+
+    if (!catalog) {
+      return json_({ success: true, categories: [], settings: savedSettings });
+    }
+
     var parsed = JSON.parse(catalog);
     return json_({
       success: true,
@@ -152,11 +248,16 @@ function getCatalog_() {
       settings: parsed.settings || savedSettings || null,
     });
   } catch (err) {
-    return json_({ success: false, error: String(err), categories: [], settings: null });
+    return json_({ success: false, error: String(err), categories: [], settings: getSavedSettings_() });
   }
 }
 
 function saveCatalog_(rawCatalog) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+  } catch (lockErr) {}
+
   try {
     var parsed = typeof rawCatalog === "object" ? rawCatalog : JSON.parse(String(rawCatalog || "{}"));
     if (!parsed || !Array.isArray(parsed.categories)) {
@@ -174,24 +275,17 @@ function saveCatalog_(rawCatalog) {
       categories: parsed.categories,
       settings: parsed.settings || getSavedSettings_() || null,
     });
-    var properties = PropertiesService.getScriptProperties();
-    var previousCount = Number(properties.getProperty("CATALOG_CHUNK_COUNT") || 0);
-    var nextCount = Math.ceil(serialized.length / CATALOG_CHUNK_SIZE);
-    var updates = { CATALOG_CHUNK_COUNT: String(nextCount) };
 
-    for (var i = 0; i < nextCount; i++) {
-      updates["CATALOG_CHUNK_" + i] = serialized.slice(
-        i * CATALOG_CHUNK_SIZE,
-        (i + 1) * CATALOG_CHUNK_SIZE,
-      );
-    }
-    for (var oldIndex = nextCount; oldIndex < previousCount; oldIndex++) {
-      properties.deleteProperty("CATALOG_CHUNK_" + oldIndex);
-    }
-    properties.setProperties(updates);
+    saveCatalogToSheet_(serialized);
+    clearLegacyCatalogProperties_();
+
     return json_({ success: true });
   } catch (err) {
     return json_({ success: false, error: String(err) });
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (e) {}
   }
 }
 

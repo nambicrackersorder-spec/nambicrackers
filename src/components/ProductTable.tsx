@@ -85,13 +85,13 @@ function ProductDetailModal({
             <X className="h-5 w-5" />
           </button>
         </div>
-        {!hideImage && imageUrl ? (
+        {(product.showImage || !hideImage) && imageUrl ? (
           <img
             src={imageUrl}
             alt={product.name}
             className="mt-3 h-48 w-full rounded-lg border border-border object-cover"
           />
-        ) : !hideImage ? (
+        ) : (product.showImage || !hideImage) ? (
           <div className="mt-3 flex h-48 items-center justify-center rounded-lg border border-dashed border-border bg-muted text-sm text-muted-foreground">
             Image unavailable
           </div>

@@ -109,8 +109,11 @@ export function AdminProductsTab({
   React.useEffect(() => {
     if (isAddModalOpen) {
       handleOpenCreate();
+      if (onCloseAddModal) {
+        onCloseAddModal();
+      }
     }
-  }, [isAddModalOpen, handleOpenCreate]);
+  }, [isAddModalOpen, handleOpenCreate, onCloseAddModal]);
 
   const handleOpenEdit = (product: Product) => {
     const cat = initialCategories.find((c) => c.products.some((p) => p.id === product.id));
@@ -615,7 +618,7 @@ export function AdminProductsTab({
       {/* Add / Edit Product Modal */}
       {(isCreating || editingProduct) && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-2 sm:p-4 md:p-6 overflow-y-auto"
           onClick={() => {
             setIsCreating(false);
             setEditingProduct(null);
@@ -623,14 +626,14 @@ export function AdminProductsTab({
           }}
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-gold/60 bg-card p-5 sm:p-6 shadow-2xl space-y-4 my-8"
+            className="relative w-full max-w-lg rounded-2xl border border-gold/60 bg-card shadow-2xl my-auto max-h-[92dvh] sm:max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-border">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border bg-card shrink-0">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                <h3 className="font-display font-bold text-lg text-primary">
+                <h3 className="font-display font-bold text-base sm:text-lg text-primary">
                   {isCreating ? "Add New Cracker" : "Edit Cracker Details"}
                 </h3>
               </div>
@@ -641,357 +644,361 @@ export function AdminProductsTab({
                   setEditingProduct(null);
                   if (onCloseAddModal) onCloseAddModal();
                 }}
-                className="rounded p-1 text-muted-foreground hover:bg-muted"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                aria-label="Close modal"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4">
-              {/* Product Name (English) */}
-              <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">
-                  Product Name (English) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g. 1000 Wala, 2 3/4 Kuruvi"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-                />
-              </div>
-
-              {/* Tamil Name */}
-              <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">
-                  Tamil Name (தமிழ் பெயர்)
-                </label>
-                <input
-                  type="text"
-                  value={formTamil}
-                  onChange={(e) => setFormTamil(e.target.value)}
-                  placeholder="e.g. 1000 வாலா, குருவி பட்டாசு"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-                />
-              </div>
-
-              {/* Category & Unit in 2 columns */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Modal Form with Scrollable Body and Pinned Footer */}
+            <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 space-y-4">
+                {/* Product Name (English) */}
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">
-                    Category *
-                  </label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-                  >
-                    {initialCategories.map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Unit Packing *
+                    Product Name (English) *
                   </label>
                   <input
                     type="text"
                     required
-                    value={formUnit}
-                    onChange={(e) => setFormUnit(e.target.value)}
-                    placeholder="e.g. 1 Pkt, 1 Box, 1 Case, 1 Pcs"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="e.g. 1000 Wala, 2 3/4 Kuruvi"
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
                   />
                 </div>
-              </div>
 
-              {/* Rate & Offer Price */}
-              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-secondary border border-border">
+                {/* Tamil Name */}
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">
-                    Original Rate (MRP) ₹
+                    Tamil Name (தமிழ் பெயர்)
                   </label>
                   <input
                     type="text"
-                    inputMode="decimal"
-                    min={1}
-                    required
-                    value={formRateInput}
-                    onChange={(e) => handleRateInputChange(e.target.value.replace(/[^0-9]/g, ""))}
-                    onBlur={() => {
-                      if (!formRateInput || Number(formRateInput) < 1) {
-                        setFormRate(1);
-                        setFormRateInput("1");
-                        setFormPrice(Math.round(discountFactor));
-                      }
-                    }}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold outline-none focus:border-accent"
+                    value={formTamil}
+                    onChange={(e) => setFormTamil(e.target.value)}
+                    placeholder="e.g. 1000 வாலா, குருவி பட்டாசு"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
                   />
-                  <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                    Before {discountPercent}% discount
-                  </span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-primary mb-1">
-                    Offer Price ({discountPercent}% OFF) ₹
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={formPrice}
-                    onChange={(e) => setFormPrice(Number(e.target.value))}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-bold text-primary outline-none focus:border-accent"
-                  />
-                  <span className="text-[10px] text-emerald-700 font-semibold mt-0.5 block">
-                    Customer billed price
-                  </span>
-                </div>
-              </div>
-
-              {/* Product Image Manager */}
-              <div className="p-3.5 rounded-xl border border-border bg-secondary/30 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <ImageIcon className="h-4 w-4 text-primary" />
-                    <span>Product Image</span>
-                  </label>
-
-                  {/* Mode Toggle */}
-                  <div className="flex items-center rounded-lg border border-border bg-background p-0.5 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setImageInputMode("upload")}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5 ${
-                        imageInputMode === "upload"
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
+                {/* Category & Unit in responsive columns */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1">
+                      Category *
+                    </label>
+                    <select
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value)}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
                     >
-                      <Upload className="h-3 w-3" />
-                      <span>Upload File</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setImageInputMode("url")}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5 ${
-                        imageInputMode === "url"
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <Link className="h-3 w-3" />
-                      <span>Image URL</span>
-                    </button>
+                      {initialCategories.map((c) => (
+                        <option key={c.name} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1">
+                      Unit Packing *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formUnit}
+                      onChange={(e) => setFormUnit(e.target.value)}
+                      placeholder="e.g. 1 Pkt, 1 Box, 1 Case, 1 Pcs"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                    />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                  {/* Input Controls (2 cols) */}
-                  <div className="sm:col-span-2 space-y-2">
-                    {imageInputMode === "upload" ? (
-                      <div>
-                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/60 rounded-xl p-3 bg-background/50 hover:bg-background cursor-pointer transition-colors text-center">
-                          <Upload className="h-5 w-5 text-muted-foreground mb-1" />
-                          <span className="text-xs font-semibold text-foreground">
-                            {fileUploadLoading ? "Processing image..." : "Choose an image or drag & drop"}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground mt-0.5">
-                            Supports PNG, JPG, JPEG, WEBP, GIF
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleImageFileChange}
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <div>
-                        <input
-                          type="text"
-                          value={formImage}
-                          onChange={(e) => {
-                            setFormImage(e.target.value);
-                            setImageError(false);
-                          }}
-                          placeholder="https://example.com/image.jpg or Cloudinary path"
-                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:border-accent"
-                        />
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          Paste any valid public image link (.jpg, .png, .webp, https://...)
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Remove image or replace actions */}
-                    {formImage && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={handleRemoveImage}
-                          className="text-xs text-red-600 hover:text-red-700 font-semibold flex items-center gap-1 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded-md transition-colors"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          <span>Remove Image</span>
-                        </button>
-                        <span className="text-[11px] text-muted-foreground truncate max-w-[160px]">
-                          {formImage.startsWith("data:") ? "Local file loaded" : formImage}
-                        </span>
-                      </div>
-                    )}
+                {/* Rate & Offer Price */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-secondary border border-border">
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1">
+                      Original Rate (MRP) ₹
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      min={1}
+                      required
+                      value={formRateInput}
+                      onChange={(e) => handleRateInputChange(e.target.value.replace(/[^0-9]/g, ""))}
+                      onBlur={() => {
+                        if (!formRateInput || Number(formRateInput) < 1) {
+                          setFormRate(1);
+                          setFormRateInput("1");
+                          setFormPrice(Math.round(discountFactor));
+                        }
+                      }}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold outline-none focus:border-accent"
+                    />
+                    <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                      Before {discountPercent}% discount
+                    </span>
                   </div>
 
-                  {/* Live Preview Box (1 col) */}
-                  <div className="flex flex-col items-center justify-center p-2 rounded-xl border border-border bg-background">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Live Preview
+                  <div>
+                    <label className="block text-xs font-semibold text-primary mb-1">
+                      Offer Price ({discountPercent}% OFF) ₹
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      required
+                      value={formPrice}
+                      onChange={(e) => setFormPrice(Number(e.target.value))}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-bold text-primary outline-none focus:border-accent"
+                    />
+                    <span className="text-[10px] text-emerald-700 font-semibold mt-0.5 block">
+                      Customer billed price
+                    </span>
+                  </div>
+                </div>
+
+                {/* Product Image Manager */}
+                <div className="p-3 sm:p-3.5 rounded-xl border border-border bg-secondary/30 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <ImageIcon className="h-4 w-4 text-primary" />
+                      <span>Product Image</span>
+                    </label>
+
+                    {/* Mode Toggle */}
+                    <div className="flex items-center rounded-lg border border-border bg-background p-0.5 text-xs shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setImageInputMode("upload")}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5 ${
+                          imageInputMode === "upload"
+                            ? "bg-primary text-primary-foreground shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Upload className="h-3 w-3" />
+                        <span>Upload File</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageInputMode("url")}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5 ${
+                          imageInputMode === "url"
+                            ? "bg-primary text-primary-foreground shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Link className="h-3 w-3" />
+                        <span>Image URL</span>
+                      </button>
                     </div>
-                    {(() => {
-                      const previewSrc = formImage
-                        ? formImage.startsWith("http") ||
-                          formImage.startsWith("data:") ||
-                          formImage.startsWith("blob:") ||
-                          formImage.startsWith("/")
-                          ? formImage
-                          : productImageUrl({ image: formImage, name: formName, slug: "" }) || formImage
-                        : null;
+                  </div>
 
-                      if (previewSrc && !imageError) {
-                        return (
-                          <div className="relative group">
-                            <img
-                              src={previewSrc}
-                              alt="Preview"
-                              onError={() => setImageError(true)}
-                              className="h-20 w-20 rounded-lg border border-border object-cover shadow-xs"
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                    {/* Input Controls (2 cols) */}
+                    <div className="sm:col-span-2 space-y-2 min-w-0">
+                      {imageInputMode === "upload" ? (
+                        <div>
+                          <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/60 rounded-xl p-3 bg-background/50 hover:bg-background cursor-pointer transition-colors text-center">
+                            <Upload className="h-5 w-5 text-muted-foreground mb-1" />
+                            <span className="text-xs font-semibold text-foreground">
+                              {fileUploadLoading ? "Processing image..." : "Choose an image or drag & drop"}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground mt-0.5">
+                              Supports PNG, JPG, JPEG, WEBP, GIF
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleImageFileChange}
                             />
-                            <button
-                              type="button"
-                              onClick={handleRemoveImage}
-                              title="Remove Image"
-                              className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center shadow hover:bg-red-700"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        );
-                      }
-                      if (imageError) {
-                        return (
-                          <div className="h-20 w-20 rounded-lg border border-dashed border-red-300 bg-red-50 flex flex-col items-center justify-center text-center p-1 text-red-600">
-                            <AlertCircle className="h-5 w-5 mb-0.5" />
-                            <span className="text-[9px] font-medium leading-tight">Failed to load</span>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div className="h-20 w-20 rounded-lg border border-dashed border-border bg-muted flex flex-col items-center justify-center text-muted-foreground text-center p-1">
-                          <ImageIcon className="h-6 w-6 mb-0.5 opacity-50" />
-                          <span className="text-[9px]">No image</span>
+                          </label>
                         </div>
-                      );
-                    })()}
+                      ) : (
+                        <div>
+                          <input
+                            type="text"
+                            value={formImage}
+                            onChange={(e) => {
+                              setFormImage(e.target.value);
+                              setImageError(false);
+                            }}
+                            placeholder="https://example.com/image.jpg or Cloudinary path"
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:border-accent"
+                          />
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Paste any valid public image link (.jpg, .png, .webp, https://...)
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Remove image or replace actions */}
+                      {formImage && (
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            className="text-xs text-red-600 hover:text-red-700 font-semibold flex items-center gap-1 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded-md transition-colors"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            <span>Remove Image</span>
+                          </button>
+                          <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">
+                            {formImage.startsWith("data:") ? "Local file loaded" : formImage}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Live Preview Box (1 col) */}
+                    <div className="flex flex-col items-center justify-center p-2 rounded-xl border border-border bg-background sm:col-span-1">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                        Live Preview
+                      </div>
+                      {(() => {
+                        const previewSrc = formImage
+                          ? formImage.startsWith("http") ||
+                            formImage.startsWith("data:") ||
+                            formImage.startsWith("blob:") ||
+                            formImage.startsWith("/")
+                            ? formImage
+                            : productImageUrl({ image: formImage, name: formName, slug: "" }) || formImage
+                          : null;
+
+                        if (previewSrc && !imageError) {
+                          return (
+                            <div className="relative group">
+                              <img
+                                src={previewSrc}
+                                alt="Preview"
+                                onError={() => setImageError(true)}
+                                className="h-20 w-20 rounded-lg border border-border object-cover shadow-xs"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleRemoveImage}
+                                title="Remove Image"
+                                className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center shadow hover:bg-red-700"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          );
+                        }
+                        if (imageError) {
+                          return (
+                            <div className="h-20 w-20 rounded-lg border border-dashed border-red-300 bg-red-50 flex flex-col items-center justify-center text-center p-1 text-red-600">
+                              <AlertCircle className="h-5 w-5 mb-0.5" />
+                              <span className="text-[9px] font-medium leading-tight">Failed to load</span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="h-20 w-20 rounded-lg border border-dashed border-border bg-muted flex flex-col items-center justify-center text-muted-foreground text-center p-1">
+                            <ImageIcon className="h-6 w-6 mb-0.5 opacity-50" />
+                            <span className="text-[9px]">No image</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Active Toggle & Case Only */}
-              <div className="p-3 rounded-xl border border-border bg-card space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formActive}
-                      onChange={(e) => setFormActive(e.target.checked)}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-accent"
-                    />
-                    <span className="text-xs font-bold text-foreground">
-                      Product Active on Customer Website
+                {/* Active Toggle & Case Only */}
+                <div className="p-3 rounded-xl border border-border bg-card space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formActive}
+                        onChange={(e) => setFormActive(e.target.checked)}
+                        className="h-4 w-4 rounded border-input text-primary focus:ring-accent"
+                      />
+                      <span className="text-xs font-bold text-foreground">
+                        Product Active on Customer Website
+                      </span>
+                    </label>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        formActive ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {formActive ? "Visible" : "Hidden"}
                     </span>
-                  </label>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      formActive ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {formActive ? "Visible" : "Hidden"}
-                  </span>
+                  </div>
+
+                  <div className="border-t border-border pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formCaseOnly}
+                        onChange={(e) => setFormCaseOnly(e.target.checked)}
+                        className="h-4 w-4 rounded border-input text-primary focus:ring-accent"
+                      />
+                      <span className="text-xs font-bold text-foreground">
+                        This is a Case-Only order (Bulk)
+                      </span>
+                    </label>
+                  </div>
+
+                  {formCaseOnly && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-border">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                          Boxes per case
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={formCaseQty}
+                          onChange={(e) => setFormCaseQty(Number(e.target.value))}
+                          className="w-full rounded border border-input bg-background px-2.5 py-1.5 text-xs outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                          Case MRP ₹
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={formCaseValue}
+                          onChange={(e) => setFormCaseValue(Number(e.target.value))}
+                          className="w-full rounded border border-input bg-background px-2.5 py-1.5 text-xs outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-primary mb-1">
+                          Case Offer ₹
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={formCasePrice}
+                          onChange={(e) => setFormCasePrice(Number(e.target.value))}
+                          className="w-full rounded border border-input bg-background px-2.5 py-1.5 text-xs font-bold text-primary outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="border-t border-border pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formCaseOnly}
-                      onChange={(e) => setFormCaseOnly(e.target.checked)}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-accent"
-                    />
-                    <span className="text-xs font-bold text-foreground">
-                      This is a Case-Only order (Bulk)
-                    </span>
-                  </label>
-                </div>
-
-                {formCaseOnly && (
-                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
-                        Boxes per case
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={formCaseQty}
-                        onChange={(e) => setFormCaseQty(Number(e.target.value))}
-                        className="w-full rounded border border-input bg-background px-2 py-1.5 text-xs outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
-                        Case MRP ₹
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={formCaseValue}
-                        onChange={(e) => setFormCaseValue(Number(e.target.value))}
-                        className="w-full rounded border border-input bg-background px-2 py-1.5 text-xs outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-primary mb-1">
-                        Case Offer ₹
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={formCasePrice}
-                        onChange={(e) => setFormCasePrice(Number(e.target.value))}
-                        className="w-full rounded border border-input bg-background px-2 py-1.5 text-xs font-bold text-primary outline-none"
-                      />
-                    </div>
+                {saveError && (
+                  <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs font-semibold text-red-800 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                    <span>{saveError}</span>
                   </div>
                 )}
               </div>
 
-              {saveError && (
-                <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs font-semibold text-red-800 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
-                  <span>{saveError}</span>
-                </div>
-              )}
-
-              {/* Modal Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              {/* Modal Buttons (Fixed Footer inside modal) */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-2 px-4 sm:px-6 py-3 border-t border-border bg-card shrink-0">
                 <button
                   type="button"
                   disabled={isSaving}
@@ -1001,14 +1008,14 @@ export function AdminProductsTab({
                     setSaveError(null);
                     if (onCloseAddModal) onCloseAddModal();
                   }}
-                  className="px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground disabled:opacity-50"
+                  className="flex-1 sm:flex-initial px-4 py-2 text-xs font-semibold rounded-md border border-input bg-card hover:bg-muted text-foreground disabled:opacity-50 text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow disabled:opacity-50 flex items-center gap-1.5"
+                  className="flex-1 sm:flex-initial btn-gold hover:btn-gold-hover px-5 py-2 text-xs font-bold shadow disabled:opacity-50 flex items-center justify-center gap-1.5 text-center"
                 >
                   {isSaving && <Sparkles className="h-3.5 w-3.5 animate-spin" />}
                   <span>{isSaving ? "Saving to Server..." : isCreating ? "Save & Add Product" : "Update Product"}</span>

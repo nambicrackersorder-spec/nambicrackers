@@ -144,27 +144,16 @@ export async function saveSettingsToServer(settings: ShopSettings): Promise<{ su
   }
 
   try {
-    // 1. Dual-payload: Save to both the catalog payload (for current Apps Script) and native settings
-    const currentState = getCatalogState();
-    const categoriesWithSettings = currentState.categories.map((c, idx) => {
-      if (idx === 0) {
-        return { ...c, _shopSettings: settings };
-      }
-      return c;
-    });
-
-    const body = new URLSearchParams({
-      action: "saveCatalog",
-      catalog: JSON.stringify({
-        categories: categoriesWithSettings,
-        settings: settings,
-      }),
+    // 1. Native saveSettings endpoint
+    const nativeBody = new URLSearchParams({
+      action: "saveSettings",
+      settings: JSON.stringify(settings),
     });
 
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
+      body: nativeBody,
     });
 
     const data = await response.json().catch(() => ({}));
@@ -172,19 +161,31 @@ export async function saveSettingsToServer(settings: ShopSettings): Promise<{ su
       throw new Error(data.error || "Backend rejected settings save");
     }
 
-    // Also attempt native saveSettings endpoint if available
+    // 2. Also sync to catalog payload so both storage representations stay synchronized
     try {
-      const nativeBody = new URLSearchParams({
-        action: "saveSettings",
-        settings: JSON.stringify(settings),
+      const currentState = getCatalogState();
+      const categoriesWithSettings = currentState.categories.map((c, idx) => {
+        if (idx === 0) {
+          return { ...c, _shopSettings: settings };
+        }
+        return c;
       });
+
+      const catBody = new URLSearchParams({
+        action: "saveCatalog",
+        catalog: JSON.stringify({
+          categories: categoriesWithSettings,
+          settings: settings,
+        }),
+      });
+
       await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: nativeBody,
+        body: catBody,
       });
-    } catch (eNative) {
-      // Ignore fallback if primary save succeeded
+    } catch (eCat) {
+      // Non-blocking fallback
     }
 
     // CONFIRMED SUCCESS -> Update local cache and state
@@ -310,22 +311,21 @@ export function getCatalogState(): CatalogState {
   return cachedCatalog;
 }
 
-/**
- * Sends catalog permanently to Backend and returns confirmation.
- */
-export async function saveCatalogToServer(
+let backgroundSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let isSavingCatalogToServer = false;
+let pendingCatalogSyncState: CatalogState | null = null;
+
+export async function persistCatalogDirectlyToServer(
   state: CatalogState,
   customSettings?: ShopSettings,
 ): Promise<{ success: boolean; error?: string }> {
   const currentSettings = customSettings || getSettings();
   const url = getCatalogSyncUrl(currentSettings);
   if (!url || typeof window === "undefined") {
-    commitCatalogToClientCache(state);
     return { success: true };
   }
 
   try {
-    // Embed _shopSettings into categories payload for guaranteed persistence across all Apps Script deployments
     const categoriesWithSettings = state.categories.map((c, idx) => {
       if (idx === 0) {
         return { ...c, _shopSettings: currentSettings };
@@ -352,14 +352,67 @@ export async function saveCatalogToServer(
       throw new Error(data.error || "Backend rejected catalog save");
     }
 
-    // Backend Confirmed -> Commit to local cache & notify UI
-    commitCatalogToClientCache(state);
     return { success: true };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error("Failed to persist catalog to backend:", errorMsg);
     return { success: false, error: errorMsg };
   }
+}
+
+export function scheduleCatalogBackgroundSync(state: CatalogState) {
+  pendingCatalogSyncState = state;
+
+  if (backgroundSyncTimer) {
+    clearTimeout(backgroundSyncTimer);
+  }
+
+  backgroundSyncTimer = setTimeout(async () => {
+    backgroundSyncTimer = null;
+    await processPendingCatalogSync();
+  }, 350);
+}
+
+async function processPendingCatalogSync() {
+  if (isSavingCatalogToServer || !pendingCatalogSyncState) {
+    return;
+  }
+
+  const stateToSend = pendingCatalogSyncState;
+  pendingCatalogSyncState = null;
+  isSavingCatalogToServer = true;
+
+  try {
+    await persistCatalogDirectlyToServer(stateToSend);
+  } catch (err) {
+    console.error("Background catalog sync error:", err);
+  } finally {
+    isSavingCatalogToServer = false;
+    if (pendingCatalogSyncState) {
+      void processPendingCatalogSync();
+    }
+  }
+}
+
+/**
+ * Sends catalog permanently to Backend and returns confirmation.
+ * Also commits to local cache immediately so the UI is instantaneous.
+ */
+export async function saveCatalogToServer(
+  state: CatalogState,
+  customSettings?: ShopSettings,
+): Promise<{ success: boolean; error?: string }> {
+  // Commit to local cache immediately so UI is optimistic and instant
+  commitCatalogToClientCache(state);
+
+  // Clear any pending debounced sync since we are doing an immediate direct save
+  if (backgroundSyncTimer) {
+    clearTimeout(backgroundSyncTimer);
+    backgroundSyncTimer = null;
+  }
+  pendingCatalogSyncState = null;
+
+  return await persistCatalogDirectlyToServer(state, customSettings);
 }
 
 /**
@@ -373,37 +426,15 @@ export async function loadCatalogFromServer(): Promise<boolean> {
   try {
     const response = await fetch(`${url}action=catalog`);
     const data = await response.json();
-    if (!data || !data.success || !Array.isArray(data.categories) || data.categories.length === 0) {
+    if (!data || !data.success) {
       return false;
     }
 
-    // 1. Process categories & products
-    const categories: Category[] = (data.categories as Category[]).map((c) => {
-      const products: Product[] = (c.products || []).map((p) => {
-        const baseImg = BASE_PRODUCT_IMAGE_MAP[p.name];
-        const isExplicitlyRemoved = p.image === null && p.showImage === false;
-        const hasCustomImage = typeof p.image === "string" && p.image.trim() !== "";
-        const finalImg = isExplicitlyRemoved ? null : hasCustomImage ? p.image : baseImg ?? null;
-        const showImg = isExplicitlyRemoved ? false : Boolean(p.showImage ?? (finalImg !== null));
-        return {
-          ...p,
-          image: finalImg,
-          showImage: showImg,
-          active: p.active !== false,
-        };
-      });
-      return {
-        ...c,
-        products,
-      };
-    });
+    let loadedAny = false;
 
-    const state: CatalogState = { categories, products: categories.flatMap((category) => category.products) };
-    commitCatalogToClientCache(state);
-
-    // 2. Process any backend settings returned in payload or attached to categories
+    // 1. Process any backend settings returned in payload or attached to categories
     const backendSettings: ShopSettings | undefined =
-      data.settings || data.categories[0]?._shopSettings;
+      data.settings || (Array.isArray(data.categories) && data.categories[0]?._shopSettings);
 
     if (backendSettings && typeof backendSettings === "object") {
       const mergedSettings: ShopSettings = {
@@ -432,9 +463,37 @@ export async function loadCatalogFromServer(): Promise<boolean> {
             : DEFAULT_SETTINGS.scriptUrl,
       };
       commitSettingsToClientCache(mergedSettings);
+      loadedAny = true;
     }
 
-    return true;
+    // 2. Process categories & products
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+      const categories: Category[] = (data.categories as Category[]).map((c) => {
+        const products: Product[] = (c.products || []).map((p) => {
+          const baseImg = BASE_PRODUCT_IMAGE_MAP[p.name];
+          const isExplicitlyRemoved = p.image === null && p.showImage === false;
+          const hasCustomImage = typeof p.image === "string" && p.image.trim() !== "";
+          const finalImg = isExplicitlyRemoved ? null : hasCustomImage ? p.image : baseImg ?? null;
+          const showImg = isExplicitlyRemoved ? false : Boolean(p.showImage ?? (finalImg !== null));
+          return {
+            ...p,
+            image: finalImg,
+            showImage: showImg,
+            active: p.active !== false,
+          };
+        });
+        return {
+          ...c,
+          products,
+        };
+      });
+
+      const state: CatalogState = { categories, products: categories.flatMap((category) => category.products) };
+      commitCatalogToClientCache(state);
+      loadedAny = true;
+    }
+
+    return loadedAny;
   } catch (err) {
     console.warn("Could not load latest catalog from Apps Script backend, using client cache", err);
     return false;
@@ -594,7 +653,10 @@ export async function toggleProductActiveInStore(
     ),
   }));
   const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
+  const newState = { categories: updatedCategories, products: updatedProducts };
+  commitCatalogToClientCache(newState);
+  scheduleCatalogBackgroundSync(newState);
+  return { success: true };
 }
 
 export async function addCategoryToStore(
@@ -682,7 +744,15 @@ export async function reorderCategoryInStore(
   categoriesCopy.splice(targetIdx, 0, removed);
 
   const reindexed: Category[] = categoriesCopy.map((c, i) => ({ ...c, order: i }));
-  return await saveCatalogToServer({ categories: reindexed, products: state.products });
+  const newState = { categories: reindexed, products: state.products };
+
+  // 1. Instant optimistic update to UI and cache (< 1ms)
+  commitCatalogToClientCache(newState);
+
+  // 2. Debounced background sync to backend
+  scheduleCatalogBackgroundSync(newState);
+
+  return { success: true };
 }
 
 export async function reorderProductInCategory(
@@ -716,7 +786,15 @@ export async function reorderProductInCategory(
   );
 
   const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
+  const newState = { categories: updatedCategories, products: updatedProducts };
+
+  // 1. Instant optimistic update to UI and cache (< 1ms)
+  commitCatalogToClientCache(newState);
+
+  // 2. Debounced background sync to backend
+  scheduleCatalogBackgroundSync(newState);
+
+  return { success: true };
 }
 
 /* =========================================================================
