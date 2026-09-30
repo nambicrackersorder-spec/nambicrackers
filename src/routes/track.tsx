@@ -82,7 +82,7 @@ function TrackPage() {
     setLoading(true);
     setRawResults(null);
     try {
-      const endpoint = settings.scriptUrl || APPS_SCRIPT_URL;
+      const endpoint = APPS_SCRIPT_URL || settings.scriptUrl;
       const res = await fetch(`${endpoint}?action=track&query=${encodeURIComponent(q)}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Lookup failed");

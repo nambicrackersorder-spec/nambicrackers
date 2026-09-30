@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { OrderRecord } from "./AdminDashboardTab";
 import { useCatalog, useSettings } from "@/lib/catalog-store";
+import { APPS_SCRIPT_URL } from "@/config";
 
 interface AdminSettingsTabProps {
   orders: OrderRecord[];
@@ -36,7 +37,7 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
   const [address, setAddress] = useState(settings.address);
   const [minOrder, setMinOrder] = useState(settings.minOrder);
   const [discount, setDiscount] = useState(settings.discount);
-  const [scriptUrl, setScriptUrl] = useState(settings.scriptUrl);
+  const [scriptUrl, setScriptUrl] = useState(settings.scriptUrl || APPS_SCRIPT_URL);
 
   // Sync state if settings update externally
   React.useEffect(() => {
@@ -47,7 +48,7 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
     setAddress(settings.address);
     setMinOrder(settings.minOrder);
     setDiscount(settings.discount);
-    setScriptUrl(settings.scriptUrl);
+    setScriptUrl(settings.scriptUrl || APPS_SCRIPT_URL);
   }, [settings]);
 
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
@@ -60,7 +61,8 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
     setTestStatus("testing");
     setTestMessage("");
     try {
-      const res = await fetch(`${scriptUrl}?action=list`);
+      const targetUrl = (scriptUrl || settings.scriptUrl || APPS_SCRIPT_URL).trim();
+      const res = await fetch(`${targetUrl}?action=list`);
       const data = await res.json();
       if (data.success) {
         setTestStatus("success");
@@ -91,7 +93,7 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
         address: address.trim(),
         minOrder: Number(minOrder) || 0,
         discount: Number(discount) || 0,
-        scriptUrl: scriptUrl.trim(),
+        scriptUrl: (scriptUrl || APPS_SCRIPT_URL).trim(),
       });
       if (res && res.success === false) {
         setSaveError(res.error || "Failed to persist settings to server.");

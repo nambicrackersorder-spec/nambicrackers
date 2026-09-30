@@ -75,7 +75,7 @@ function notifyListeners() {
    ========================================================================= */
 
 function getCatalogSyncUrl(overrideSettings?: ShopSettings) {
-  const url = (overrideSettings || getSettings()).scriptUrl || DEFAULT_APPS_SCRIPT_URL;
+  const url = (DEFAULT_APPS_SCRIPT_URL || overrideSettings?.scriptUrl || getSettings().scriptUrl || "").trim();
   return url ? `${url}${url.includes("?") ? "&" : "?"}` : "";
 }
 
@@ -103,7 +103,8 @@ function loadSettingsFromStorage(): ShopSettings {
           address: typeof parsed.address === "string" && parsed.address ? parsed.address : DEFAULT_SETTINGS.address,
           minOrder: typeof parsed.minOrder === "number" && !isNaN(parsed.minOrder) ? parsed.minOrder : DEFAULT_SETTINGS.minOrder,
           discount: typeof parsed.discount === "number" && !isNaN(parsed.discount) ? parsed.discount : DEFAULT_SETTINGS.discount,
-          scriptUrl: typeof parsed.scriptUrl === "string" && parsed.scriptUrl ? parsed.scriptUrl : DEFAULT_SETTINGS.scriptUrl,
+          // Central deployed Apps Script URL is authoritative; local cache serves as fallback only
+          scriptUrl: DEFAULT_APPS_SCRIPT_URL || (typeof parsed.scriptUrl === "string" && parsed.scriptUrl ? parsed.scriptUrl : DEFAULT_SETTINGS.scriptUrl),
         };
       }
     }
@@ -137,9 +138,13 @@ export function getSettings(): ShopSettings {
  * Persists ShopSettings permanently to Backend first, then updates local cache.
  */
 export async function saveSettingsToServer(settings: ShopSettings): Promise<{ success: boolean; error?: string }> {
-  const url = getCatalogSyncUrl(settings);
+  const payloadSettings: ShopSettings = {
+    ...settings,
+    scriptUrl: DEFAULT_APPS_SCRIPT_URL || settings.scriptUrl || DEFAULT_SETTINGS.scriptUrl,
+  };
+  const url = getCatalogSyncUrl(payloadSettings);
   if (!url || typeof window === "undefined") {
-    commitSettingsToClientCache(settings);
+    commitSettingsToClientCache(payloadSettings);
     return { success: true };
   }
 
@@ -147,7 +152,7 @@ export async function saveSettingsToServer(settings: ShopSettings): Promise<{ su
     // 1. Native saveSettings endpoint
     const nativeBody = new URLSearchParams({
       action: "saveSettings",
-      settings: JSON.stringify(settings),
+      settings: JSON.stringify(payloadSettings),
     });
 
     const response = await fetch(url, {
@@ -166,7 +171,7 @@ export async function saveSettingsToServer(settings: ShopSettings): Promise<{ su
       const currentState = getCatalogState();
       const categoriesWithSettings = currentState.categories.map((c, idx) => {
         if (idx === 0) {
-          return { ...c, _shopSettings: settings };
+          return { ...c, _shopSettings: payloadSettings };
         }
         return c;
       });
@@ -175,7 +180,7 @@ export async function saveSettingsToServer(settings: ShopSettings): Promise<{ su
         action: "saveCatalog",
         catalog: JSON.stringify({
           categories: categoriesWithSettings,
-          settings: settings,
+          settings: payloadSettings,
         }),
       });
 
@@ -189,7 +194,7 @@ export async function saveSettingsToServer(settings: ShopSettings): Promise<{ su
     }
 
     // CONFIRMED SUCCESS -> Update local cache and state
-    commitSettingsToClientCache(settings);
+    commitSettingsToClientCache(payloadSettings);
     return { success: true };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -458,9 +463,10 @@ export async function loadCatalogFromServer(): Promise<boolean> {
             ? backendSettings.discount
             : DEFAULT_SETTINGS.discount,
         scriptUrl:
-          typeof backendSettings.scriptUrl === "string" && backendSettings.scriptUrl
+          DEFAULT_APPS_SCRIPT_URL ||
+          (typeof backendSettings.scriptUrl === "string" && backendSettings.scriptUrl
             ? backendSettings.scriptUrl
-            : DEFAULT_SETTINGS.scriptUrl,
+            : DEFAULT_SETTINGS.scriptUrl),
       };
       commitSettingsToClientCache(mergedSettings);
       loadedAny = true;
@@ -560,7 +566,7 @@ export async function addProductToStore(
   });
 
   const currentSettings = getSettings();
-  const url = (currentSettings.scriptUrl || DEFAULT_APPS_SCRIPT_URL).trim();
+  const url = (DEFAULT_APPS_SCRIPT_URL || currentSettings.scriptUrl).trim();
 
   console.log("[NAMBI-ADD-PRODUCT-DIAG] (4 & 5) Backend script URL resolution:", {
     scriptUrlFromSettings: currentSettings.scriptUrl,
@@ -1180,7 +1186,11 @@ export function useCatalog() {
     setCurrentSettings(getSettings());
     if (!remoteCatalogSyncStarted) {
       remoteCatalogSyncStarted = true;
-      void loadCatalogFromServer();
+      loadCatalogFromServer().then((success) => {
+        if (!success) {
+          remoteCatalogSyncStarted = false;
+        }
+      });
     }
     return subscribe(() => {
       setState({ ...getCatalogState() });

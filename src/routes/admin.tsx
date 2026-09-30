@@ -36,7 +36,7 @@ export const Route = createFileRoute("/admin")({
 
 async function fetchLiveOrders(scriptUrl: string): Promise<OrderRecord[]> {
   try {
-    const url = scriptUrl || APPS_SCRIPT_URL;
+    const url = APPS_SCRIPT_URL || scriptUrl;
     const res = await fetch(`${url}?action=list`);
     const data = await res.json();
     if (!data.success) throw new Error(data.error || "Failed to load orders");
@@ -116,9 +116,10 @@ function AdminPage() {
   ) => {
     const orderId = typeof orderIdentifier === "string" ? (order?.orderId || orderIdentifier) : undefined;
 
-    if (orderId && settings.scriptUrl) {
+    const endpoint = APPS_SCRIPT_URL || settings.scriptUrl;
+    if (orderId && endpoint) {
       try {
-        const url = `${settings.scriptUrl}?action=updateStatus&orderId=${encodeURIComponent(String(orderId))}&status=${encodeURIComponent(newStatus)}`;
+        const url = `${endpoint}?action=updateStatus&orderId=${encodeURIComponent(String(orderId))}&status=${encodeURIComponent(newStatus)}`;
         await fetch(url);
       } catch (err) {
         console.warn("Could not sync order status to Apps Script", err);
