@@ -75,7 +75,12 @@ function notifyListeners() {
    ========================================================================= */
 
 function getCatalogSyncUrl(overrideSettings?: ShopSettings) {
-  const url = (DEFAULT_APPS_SCRIPT_URL || overrideSettings?.scriptUrl || getSettings().scriptUrl || "").trim();
+  const url = (
+    (typeof overrideSettings?.scriptUrl === "string" && overrideSettings.scriptUrl.trim()) ||
+    (typeof getSettings().scriptUrl === "string" && getSettings().scriptUrl.trim()) ||
+    DEFAULT_APPS_SCRIPT_URL ||
+    ""
+  ).trim();
   return url ? `${url}${url.includes("?") ? "&" : "?"}` : "";
 }
 
@@ -103,8 +108,11 @@ function loadSettingsFromStorage(): ShopSettings {
           address: typeof parsed.address === "string" && parsed.address ? parsed.address : DEFAULT_SETTINGS.address,
           minOrder: typeof parsed.minOrder === "number" && !isNaN(parsed.minOrder) ? parsed.minOrder : DEFAULT_SETTINGS.minOrder,
           discount: typeof parsed.discount === "number" && !isNaN(parsed.discount) ? parsed.discount : DEFAULT_SETTINGS.discount,
-          // Central deployed Apps Script URL is authoritative; local cache serves as fallback only
-          scriptUrl: DEFAULT_APPS_SCRIPT_URL || (typeof parsed.scriptUrl === "string" && parsed.scriptUrl ? parsed.scriptUrl : DEFAULT_SETTINGS.scriptUrl),
+          // Saved Apps Script URL is authoritative; DEFAULT_SETTINGS.scriptUrl serves as initial fallback
+          scriptUrl:
+            typeof parsed.scriptUrl === "string" && parsed.scriptUrl.trim()
+              ? parsed.scriptUrl.trim()
+              : DEFAULT_SETTINGS.scriptUrl,
         };
       }
     }
@@ -140,7 +148,10 @@ export function getSettings(): ShopSettings {
 export async function saveSettingsToServer(settings: ShopSettings): Promise<{ success: boolean; error?: string }> {
   const payloadSettings: ShopSettings = {
     ...settings,
-    scriptUrl: DEFAULT_APPS_SCRIPT_URL || settings.scriptUrl || DEFAULT_SETTINGS.scriptUrl,
+    scriptUrl:
+      typeof settings.scriptUrl === "string" && settings.scriptUrl.trim()
+        ? settings.scriptUrl.trim()
+        : DEFAULT_SETTINGS.scriptUrl,
   };
   const url = getCatalogSyncUrl(payloadSettings);
   if (!url || typeof window === "undefined") {
@@ -463,10 +474,9 @@ export async function loadCatalogFromServer(): Promise<boolean> {
             ? backendSettings.discount
             : DEFAULT_SETTINGS.discount,
         scriptUrl:
-          DEFAULT_APPS_SCRIPT_URL ||
-          (typeof backendSettings.scriptUrl === "string" && backendSettings.scriptUrl
-            ? backendSettings.scriptUrl
-            : DEFAULT_SETTINGS.scriptUrl),
+          typeof backendSettings.scriptUrl === "string" && backendSettings.scriptUrl.trim()
+            ? backendSettings.scriptUrl.trim()
+            : (getSettings().scriptUrl || DEFAULT_SETTINGS.scriptUrl),
       };
       commitSettingsToClientCache(mergedSettings);
       loadedAny = true;
@@ -566,7 +576,7 @@ export async function addProductToStore(
   });
 
   const currentSettings = getSettings();
-  const url = (DEFAULT_APPS_SCRIPT_URL || currentSettings.scriptUrl).trim();
+  const url = (currentSettings.scriptUrl || DEFAULT_APPS_SCRIPT_URL || "").trim();
 
   console.log("[NAMBI-ADD-PRODUCT-DIAG] (4 & 5) Backend script URL resolution:", {
     scriptUrlFromSettings: currentSettings.scriptUrl,

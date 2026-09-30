@@ -36,7 +36,7 @@ export const Route = createFileRoute("/admin")({
 
 async function fetchLiveOrders(scriptUrl: string): Promise<OrderRecord[]> {
   try {
-    const url = APPS_SCRIPT_URL || scriptUrl;
+    const url = (scriptUrl || APPS_SCRIPT_URL).trim();
     const res = await fetch(`${url}?action=list`);
     const data = await res.json();
     if (!data.success) throw new Error(data.error || "Failed to load orders");
@@ -116,7 +116,7 @@ function AdminPage() {
   ) => {
     const orderId = typeof orderIdentifier === "string" ? (order?.orderId || orderIdentifier) : undefined;
 
-    const endpoint = APPS_SCRIPT_URL || settings.scriptUrl;
+    const endpoint = (settings.scriptUrl || APPS_SCRIPT_URL).trim();
     if (orderId && endpoint) {
       try {
         const url = `${endpoint}?action=updateStatus&orderId=${encodeURIComponent(String(orderId))}&status=${encodeURIComponent(newStatus)}`;

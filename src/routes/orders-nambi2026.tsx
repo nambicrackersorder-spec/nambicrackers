@@ -57,7 +57,7 @@ type Order = {
 };
 
 async function fetchOrders(scriptUrl: string): Promise<Order[]> {
-  const url = APPS_SCRIPT_URL || scriptUrl;
+  const url = (scriptUrl || APPS_SCRIPT_URL).trim();
   const res = await fetch(`${url}?action=list`);
   const data = await res.json();
   if (!data.success) throw new Error(data.error || "Failed to load orders");
@@ -143,7 +143,7 @@ function OrdersDashboard() {
 
   const handleUpdateStatus = async (key: string, newStatus: string, order: Order) => {
     const orderId = order.orderId || key;
-    const endpoint = APPS_SCRIPT_URL || settings.scriptUrl;
+    const endpoint = (settings.scriptUrl || APPS_SCRIPT_URL).trim();
     if (endpoint && orderId) {
       try {
         const url = `${endpoint}?action=updateStatus&orderId=${encodeURIComponent(String(orderId))}&status=${encodeURIComponent(newStatus)}`;
