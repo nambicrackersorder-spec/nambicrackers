@@ -5,7 +5,6 @@ import { APPS_SCRIPT_URL, SHOP } from "@/config";
 import {
   useCatalog,
   useOrderStatusMap,
-  useSettings,
   filterRealOrders,
   type Product,
   type Category,
@@ -34,9 +33,9 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-async function fetchLiveOrders(scriptUrl: string): Promise<OrderRecord[]> {
+async function fetchLiveOrders(): Promise<OrderRecord[]> {
   try {
-    const url = (scriptUrl || APPS_SCRIPT_URL).trim();
+    const url = APPS_SCRIPT_URL.trim();
     const res = await fetch(`${url}?action=list`);
     const data = await res.json();
     if (!data.success) throw new Error(data.error || "Failed to load orders");
@@ -52,8 +51,6 @@ function AdminPage() {
   const [currentTab, setCurrentTab] = useState<AdminTab>("dashboard");
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [productCategoryFilter, setProductCategoryFilter] = useState<string>("all");
-
-  const { settings } = useSettings();
 
   const {
     categories,
@@ -79,8 +76,8 @@ function AdminPage() {
     refetch,
     dataUpdatedAt,
   } = useQuery({
-    queryKey: ["admin-orders", settings.scriptUrl],
-    queryFn: () => fetchLiveOrders(settings.scriptUrl),
+    queryKey: ["admin-orders"],
+    queryFn: () => fetchLiveOrders(),
     refetchInterval: 30000,
     retry: 1,
   });
@@ -116,7 +113,7 @@ function AdminPage() {
   ) => {
     const orderId = typeof orderIdentifier === "string" ? (order?.orderId || orderIdentifier) : undefined;
 
-    const endpoint = (settings.scriptUrl || APPS_SCRIPT_URL).trim();
+    const endpoint = APPS_SCRIPT_URL.trim();
     if (orderId && endpoint) {
       try {
         const url = `${endpoint}?action=updateStatus&orderId=${encodeURIComponent(String(orderId))}&status=${encodeURIComponent(newStatus)}`;

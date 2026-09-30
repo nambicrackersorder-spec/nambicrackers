@@ -6,7 +6,7 @@ import {
   type Product as OriginalProduct,
   type Category as OriginalCategory,
 } from "@/data/products";
-import { SHOP as DEFAULT_SHOP, APPS_SCRIPT_URL as DEFAULT_APPS_SCRIPT_URL } from "@/config";
+import { SHOP as DEFAULT_SHOP, APPS_SCRIPT_URL } from "@/config";
 
 export interface Product extends OriginalProduct {
   active?: boolean;
@@ -50,7 +50,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   address: DEFAULT_SHOP.address,
   minOrder: DEFAULT_SHOP.minOrder,
   discount: DEFAULT_SHOP.discount,
-  scriptUrl: DEFAULT_APPS_SCRIPT_URL,
+  scriptUrl: APPS_SCRIPT_URL,
 };
 
 interface CatalogState {
@@ -74,13 +74,8 @@ function notifyListeners() {
    URL & Helpers
    ========================================================================= */
 
-function getCatalogSyncUrl(overrideSettings?: ShopSettings) {
-  const url = (
-    (typeof overrideSettings?.scriptUrl === "string" && overrideSettings.scriptUrl.trim()) ||
-    (typeof getSettings().scriptUrl === "string" && getSettings().scriptUrl.trim()) ||
-    DEFAULT_APPS_SCRIPT_URL ||
-    ""
-  ).trim();
+function getCatalogSyncUrl() {
+  const url = APPS_SCRIPT_URL.trim();
   return url ? `${url}${url.includes("?") ? "&" : "?"}` : "";
 }
 
@@ -108,11 +103,8 @@ function loadSettingsFromStorage(): ShopSettings {
           address: typeof parsed.address === "string" && parsed.address ? parsed.address : DEFAULT_SETTINGS.address,
           minOrder: typeof parsed.minOrder === "number" && !isNaN(parsed.minOrder) ? parsed.minOrder : DEFAULT_SETTINGS.minOrder,
           discount: typeof parsed.discount === "number" && !isNaN(parsed.discount) ? parsed.discount : DEFAULT_SETTINGS.discount,
-          // Saved Apps Script URL is authoritative; DEFAULT_SETTINGS.scriptUrl serves as initial fallback
-          scriptUrl:
-            typeof parsed.scriptUrl === "string" && parsed.scriptUrl.trim()
-              ? parsed.scriptUrl.trim()
-              : DEFAULT_SETTINGS.scriptUrl,
+          // Authoritative fixed project-level Apps Script URL
+          scriptUrl: APPS_SCRIPT_URL,
         };
       }
     }
@@ -148,12 +140,9 @@ export function getSettings(): ShopSettings {
 export async function saveSettingsToServer(settings: ShopSettings): Promise<{ success: boolean; error?: string }> {
   const payloadSettings: ShopSettings = {
     ...settings,
-    scriptUrl:
-      typeof settings.scriptUrl === "string" && settings.scriptUrl.trim()
-        ? settings.scriptUrl.trim()
-        : DEFAULT_SETTINGS.scriptUrl,
+    scriptUrl: APPS_SCRIPT_URL,
   };
-  const url = getCatalogSyncUrl(payloadSettings);
+  const url = getCatalogSyncUrl();
   if (!url || typeof window === "undefined") {
     commitSettingsToClientCache(payloadSettings);
     return { success: true };
@@ -335,8 +324,10 @@ export async function persistCatalogDirectlyToServer(
   state: CatalogState,
   customSettings?: ShopSettings,
 ): Promise<{ success: boolean; error?: string }> {
-  const currentSettings = customSettings || getSettings();
-  const url = getCatalogSyncUrl(currentSettings);
+  const currentSettings = customSettings
+    ? { ...customSettings, scriptUrl: APPS_SCRIPT_URL }
+    : getSettings();
+  const url = getCatalogSyncUrl();
   if (!url || typeof window === "undefined") {
     return { success: true };
   }
@@ -473,10 +464,7 @@ export async function loadCatalogFromServer(): Promise<boolean> {
           typeof backendSettings.discount === "number" && !isNaN(backendSettings.discount)
             ? backendSettings.discount
             : DEFAULT_SETTINGS.discount,
-        scriptUrl:
-          typeof backendSettings.scriptUrl === "string" && backendSettings.scriptUrl.trim()
-            ? backendSettings.scriptUrl.trim()
-            : (getSettings().scriptUrl || DEFAULT_SETTINGS.scriptUrl),
+        scriptUrl: APPS_SCRIPT_URL,
       };
       commitSettingsToClientCache(mergedSettings);
       loadedAny = true;
@@ -575,12 +563,10 @@ export async function addProductToStore(
     categoryName,
   });
 
-  const currentSettings = getSettings();
-  const url = (currentSettings.scriptUrl || DEFAULT_APPS_SCRIPT_URL || "").trim();
+  const url = APPS_SCRIPT_URL.trim();
 
   console.log("[NAMBI-ADD-PRODUCT-DIAG] (4 & 5) Backend script URL resolution:", {
-    scriptUrlFromSettings: currentSettings.scriptUrl,
-    DEFAULT_APPS_SCRIPT_URL,
+    APPS_SCRIPT_URL,
     resolvedUrl: url,
     isBrowser: typeof window !== "undefined",
   });

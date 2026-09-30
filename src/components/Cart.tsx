@@ -125,7 +125,7 @@ export function Cart({ lines, setQty, clear, onClose, onDone }: Props) {
         totalAmount: String(netTotal),
         pdf,
       });
-      const endpoint = (settings.scriptUrl || APPS_SCRIPT_URL).trim();
+      const endpoint = APPS_SCRIPT_URL.trim();
       await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },

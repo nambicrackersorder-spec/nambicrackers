@@ -37,7 +37,6 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
   const [address, setAddress] = useState(settings.address);
   const [minOrder, setMinOrder] = useState(settings.minOrder);
   const [discount, setDiscount] = useState(settings.discount);
-  const [scriptUrl, setScriptUrl] = useState(settings.scriptUrl || APPS_SCRIPT_URL);
 
   // Sync state if settings update externally
   React.useEffect(() => {
@@ -48,7 +47,6 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
     setAddress(settings.address);
     setMinOrder(settings.minOrder);
     setDiscount(settings.discount);
-    setScriptUrl(settings.scriptUrl || APPS_SCRIPT_URL);
   }, [settings]);
 
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
@@ -61,8 +59,7 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
     setTestStatus("testing");
     setTestMessage("");
     try {
-      const targetUrl = (scriptUrl || settings.scriptUrl || APPS_SCRIPT_URL).trim();
-      const res = await fetch(`${targetUrl}?action=list`);
+      const res = await fetch(`${APPS_SCRIPT_URL}?action=list`);
       const data = await res.json();
       if (data.success) {
         setTestStatus("success");
@@ -93,7 +90,7 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
         address: address.trim(),
         minOrder: Number(minOrder) || 0,
         discount: Number(discount) || 0,
-        scriptUrl: (scriptUrl || APPS_SCRIPT_URL).trim(),
+        scriptUrl: APPS_SCRIPT_URL,
       });
       if (res && res.success === false) {
         setSaveError(res.error || "Failed to persist settings to server.");
@@ -328,18 +325,22 @@ export function AdminSettingsTab({ orders }: AdminSettingsTabProps) {
 
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                Web App Deployment URL
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-foreground">
+                  Web App Deployment URL
+                </label>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                  Authoritative Fixed URL
+                </span>
+              </div>
               <input
                 type="url"
-                value={scriptUrl}
-                onChange={(e) => setScriptUrl(e.target.value)}
-                placeholder="https://script.google.com/macros/s/.../exec"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono outline-none focus:border-accent"
+                value={APPS_SCRIPT_URL}
+                readOnly
+                className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-xs font-mono text-muted-foreground outline-none cursor-not-allowed select-all"
               />
               <p className="text-[11px] text-muted-foreground mt-1">
-                Receives enquiries, stores orders in Google Sheets, and provides tracking data.
+                Receives enquiries, stores orders in Google Sheets, and provides tracking data for all admins and customers.
               </p>
             </div>
 
