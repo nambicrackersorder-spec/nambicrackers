@@ -225,6 +225,14 @@ export function AdminProductsTab({
     e.preventDefault();
     if (!formName.trim()) return;
 
+    console.log("[NAMBI-ADD-PRODUCT-DIAG] (1) Admin Add Product form submitted:", {
+      formName,
+      formCategory,
+      formRate,
+      formPrice,
+      isCreating,
+    });
+
     setSaveError(null);
     setIsSaving(true);
 
@@ -256,7 +264,16 @@ export function AdminProductsTab({
               }
             : {}),
         };
+
+        console.log("[NAMBI-ADD-PRODUCT-DIAG] (2) AdminProductsTab calling onAddProduct with:", {
+          product: newProduct,
+          category: formCategory,
+        });
+
         const res = await onAddProduct(newProduct, formCategory);
+
+        console.log("[NAMBI-ADD-PRODUCT-DIAG] (11) onAddProduct returned result:", res);
+
         if (res && res.success === false) {
           setSaveError(res.error || "Failed to save product to backend server.");
           return;

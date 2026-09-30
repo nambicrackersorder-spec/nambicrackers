@@ -553,32 +553,146 @@ export async function addProductToStore(
   product: Product,
   categoryName: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const state = getCatalogState();
-  let foundCat = false;
-
-  const updatedCategories: Category[] = state.categories.map((cat) => {
-    if (cat.name.toLowerCase() === categoryName.trim().toLowerCase()) {
-      foundCat = true;
-      return {
-        ...cat,
-        products: [product, ...cat.products],
-      };
-    }
-    return cat;
+  console.log("[NAMBI-ADD-PRODUCT-DIAG] (3) addProductToStore() executed with:", {
+    productName: product.name,
+    productId: product.id,
+    categoryName,
   });
 
-  if (!foundCat) {
-    updatedCategories.push({
-      name: categoryName.trim(),
-      products: [product],
-      active: true,
-      order: updatedCategories.length,
-      isDemo: false,
+  const currentSettings = getSettings();
+  const url = (currentSettings.scriptUrl || DEFAULT_APPS_SCRIPT_URL).trim();
+
+  console.log("[NAMBI-ADD-PRODUCT-DIAG] (4 & 5) Backend script URL resolution:", {
+    scriptUrlFromSettings: currentSettings.scriptUrl,
+    DEFAULT_APPS_SCRIPT_URL,
+    resolvedUrl: url,
+    isBrowser: typeof window !== "undefined",
+  });
+
+  // If in non-browser or offline environment without backend URL, update local cache only
+  if (!url || typeof window === "undefined") {
+    console.warn("[NAMBI-ADD-PRODUCT-DIAG] (4-FAIL) No script URL found or running in SSR. Updating local cache only.");
+    const state = getCatalogState();
+    let foundCat = false;
+
+    const updatedCategories: Category[] = state.categories.map((cat) => {
+      if (cat.name.toLowerCase() === categoryName.trim().toLowerCase()) {
+        foundCat = true;
+        return {
+          ...cat,
+          products: [product, ...cat.products],
+        };
+      }
+      return cat;
     });
+
+    if (!foundCat) {
+      updatedCategories.push({
+        name: categoryName.trim(),
+        products: [product],
+        active: true,
+        order: updatedCategories.length,
+        isDemo: false,
+      });
+    }
+
+    const updatedProducts = updatedCategories.flatMap((c) => c.products);
+    commitCatalogToClientCache({ categories: updatedCategories, products: updatedProducts });
+    return { success: true };
   }
 
-  const updatedProducts = updatedCategories.flatMap((c) => c.products);
-  return await saveCatalogToServer({ categories: updatedCategories, products: updatedProducts });
+  try {
+    // 1. Send POST request directly to the dedicated Apps Script addProduct endpoint
+    const body = new URLSearchParams({
+      action: "addProduct",
+      categoryName: categoryName.trim(),
+      product: JSON.stringify(product),
+    });
+
+    console.log("[NAMBI-ADD-PRODUCT-DIAG] (6 & 7) POST request created and dispatching fetch:", {
+      url,
+      method: "POST",
+      actionParam: "addProduct",
+      categoryName: categoryName.trim(),
+      payloadSize: body.toString().length,
+    });
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+
+    console.log("[NAMBI-ADD-PRODUCT-DIAG] (8) HTTP Response status received:", {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      headers: Object.fromEntries(response.headers.entries()),
+    });
+
+    const rawText = await response.text();
+    console.log("[NAMBI-ADD-PRODUCT-DIAG] (9) Raw response text from Apps Script:", rawText);
+
+    let data: any = {};
+    try {
+      data = JSON.parse(rawText);
+      console.log("[NAMBI-ADD-PRODUCT-DIAG] (10) Parsed JSON response object:", data);
+    } catch (parseErr) {
+      console.error("[NAMBI-ADD-PRODUCT-DIAG] (10-ERR) Failed to parse JSON response:", parseErr);
+      return { success: false, error: "Invalid JSON response from server: " + rawText.slice(0, 200) };
+    }
+
+    if (!data || data.success === false) {
+      const errorMsg = data?.error || "Backend rejected product addition";
+      console.error("[NAMBI-ADD-PRODUCT-DIAG] (10-REJECTED) Backend returned error:", errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    // 2. Only after confirmed successful backend save to Products sheet, update local cache
+    const savedProduct: Product =
+      data.product && typeof data.product === "object"
+        ? { ...product, ...data.product }
+        : product;
+
+    console.log("[NAMBI-ADD-PRODUCT-DIAG] (10-SUCCESS) Product confirmed saved on backend, updating local state:", {
+      hasReturnedProduct: Boolean(data.product),
+      savedProduct,
+    });
+
+    const state = getCatalogState();
+    let foundCat = false;
+
+    const updatedCategories: Category[] = state.categories.map((cat) => {
+      if (cat.name.toLowerCase() === categoryName.trim().toLowerCase()) {
+        foundCat = true;
+        return {
+          ...cat,
+          products: [savedProduct, ...cat.products.filter((p) => p.id !== savedProduct.id)],
+        };
+      }
+      return cat;
+    });
+
+    if (!foundCat) {
+      updatedCategories.push({
+        name: categoryName.trim(),
+        products: [savedProduct],
+        active: true,
+        order: updatedCategories.length,
+        isDemo: false,
+      });
+    }
+
+    const updatedProducts = updatedCategories.flatMap((c) => c.products);
+    const newState = { categories: updatedCategories, products: updatedProducts };
+    commitCatalogToClientCache(newState);
+
+    return { success: true };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error("[NAMBI-ADD-PRODUCT-DIAG] (FETCH-EXCEPTION) Exception during addProduct:", errorMsg, err);
+    return { success: false, error: errorMsg };
+  }
 }
 
 export async function updateProductInStore(
