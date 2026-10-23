@@ -723,7 +723,7 @@ function verifySheetsCatalog_(expectedCategories) {
   }
 }
 
-function clearLegacyCatalogProperties_() {
+function clearLegacyCatalogBackups_() {
   try {
     var properties = PropertiesService.getScriptProperties();
     var count = Number(properties.getProperty("CATALOG_CHUNK_COUNT") || 0);
@@ -733,7 +733,18 @@ function clearLegacyCatalogProperties_() {
       }
       properties.deleteProperty("CATALOG_CHUNK_COUNT");
     }
-  } catch (ignore) {}
+  } catch (err) {
+    console.warn("Could not clear legacy catalog script properties: " + err);
+  }
+
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CATALOG_STORE_SHEET_NAME);
+    if (sheet) {
+      sheet.clearContents();
+    }
+  } catch (sheetErr) {
+    console.warn("Could not clear the legacy catalog backup sheet: " + sheetErr);
+  }
 }
 
 function migrateCatalogIfNecessary_() {
@@ -749,7 +760,7 @@ function migrateCatalogIfNecessary_() {
     saveCatalogToSheets_(legacy.categories, legacy.settings);
     var check = verifySheetsCatalog_(legacy.categories);
     if (check.valid) {
-      clearLegacyCatalogProperties_();
+      clearLegacyCatalogBackups_();
       return true;
     }
   }
@@ -806,6 +817,13 @@ function getCatalog_() {
     var savedSettings = getSavedSettings_();
     var categories = readCatalogFromSheets_();
 
+    if (categories && categories.length > 0) {
+      var currentCatalogCheck = verifySheetsCatalog_();
+      if (currentCatalogCheck.valid) {
+        clearLegacyCatalogBackups_();
+      }
+    }
+
     if (!categories || categories.length === 0) {
       var fallbackLegacy = readLegacyCatalogBackup_();
       if (fallbackLegacy && Array.isArray(fallbackLegacy.categories)) {
@@ -846,7 +864,7 @@ function saveCatalog_(rawCatalog) {
     // Verify written catalog
     var check = verifySheetsCatalog_(parsed.categories);
     if (check.valid) {
-      clearLegacyCatalogProperties_();
+      clearLegacyCatalogBackups_();
     }
 
     return json_({

@@ -1,11 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import {
-  CATEGORIES as BASE_CATEGORIES,
-  ALL_PRODUCTS as BASE_ALL_PRODUCTS,
-  BASE_PRODUCT_IMAGE_MAP,
-  type Product as OriginalProduct,
-  type Category as OriginalCategory,
-} from "@/data/products";
+import { BASE_PRODUCT_IMAGE_MAP, type Product as OriginalProduct } from "@/data/products";
 import { SHOP as DEFAULT_SHOP, APPS_SCRIPT_URL } from "@/config";
 
 export interface Product extends OriginalProduct {
@@ -37,7 +31,7 @@ export interface ShopSettings {
   scriptUrl: string;
 }
 
-const STORAGE_KEY_CATALOG = "nambi_catalog_v2";
+const STORAGE_KEY_CATALOG = "nambi_catalog_v3";
 const STORAGE_KEY_ORDER_STATUS = "nambi_order_status_v2";
 const STORAGE_KEY_SETTINGS = "nambi_settings_v2";
 const STORAGE_KEY_CLEARED_DEMO_ORDERS = "nambi_cleared_demo_orders_v2";
@@ -231,19 +225,18 @@ export async function resetSettingsToDefault(): Promise<{ success: boolean; erro
    ========================================================================= */
 
 /**
- * Initializes catalog from local cache or fallback.
- * NOTE: NEVER sends fallback to the server on load (prevents reverse synchronization bugs).
+ * Initializes from the current local cache; the server replaces it with the authoritative catalog.
  */
 function loadCatalogFromStorage(): CatalogState {
   if (typeof window === "undefined") {
-    return getBaseCatalogFallback();
+    return { categories: [], products: [] };
   }
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CATALOG);
     if (raw) {
       const parsed = JSON.parse(raw) as { categories: Category[] };
-      if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
+      if (parsed && Array.isArray(parsed.categories)) {
         const categories: Category[] = parsed.categories.map((c) => {
           const products: Product[] = c.products.map((p) => {
             const baseImg = BASE_PRODUCT_IMAGE_MAP[p.name];
@@ -268,29 +261,13 @@ function loadCatalogFromStorage(): CatalogState {
       }
     }
   } catch (err) {
-    console.warn("Could not parse saved catalog from localStorage, falling back to base catalog", err);
+    console.warn(
+      "Could not parse saved catalog from localStorage; starting with an empty catalog",
+      err,
+    );
   }
 
-  return getBaseCatalogFallback();
-}
-
-function getBaseCatalogFallback(): CatalogState {
-  const categories: Category[] = BASE_CATEGORIES.map((c, i) => ({
-    ...c,
-    active: true,
-    order: i,
-    isDemo: false,
-    products: c.products.map((p) => ({
-      ...p,
-      active: true,
-      isDemo: false,
-      image: p.image || BASE_PRODUCT_IMAGE_MAP[p.name] || null,
-      showImage: Boolean(p.image || BASE_PRODUCT_IMAGE_MAP[p.name]),
-    })),
-  }));
-
-  const products = categories.flatMap((c) => c.products);
-  return { categories, products };
+  return { categories: [], products: [] };
 }
 
 function commitCatalogToClientCache(state: CatalogState) {
@@ -471,7 +448,7 @@ export async function loadCatalogFromServer(): Promise<boolean> {
     }
 
     // 2. Process categories & products
-    if (Array.isArray(data.categories) && data.categories.length > 0) {
+    if (Array.isArray(data.categories)) {
       const categories: Category[] = (data.categories as Category[]).map((c) => {
         const products: Product[] = (c.products || []).map((p) => {
           const baseImg = BASE_PRODUCT_IMAGE_MAP[p.name];
@@ -494,6 +471,11 @@ export async function loadCatalogFromServer(): Promise<boolean> {
 
       const state: CatalogState = { categories, products: categories.flatMap((category) => category.products) };
       commitCatalogToClientCache(state);
+      try {
+        localStorage.removeItem("nambi_catalog_v2");
+      } catch (err) {
+        console.warn("Could not remove the outdated local catalog cache", err);
+      }
       loadedAny = true;
     }
 
